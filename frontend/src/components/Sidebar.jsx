@@ -8,8 +8,7 @@ import {
   BarChart3, 
   LogOut, 
   CreditCard, 
-  Tag, 
-  Loader2 
+  Tag 
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
@@ -98,15 +97,13 @@ export default function Sidebar() {
                   {isActive && (
                     <div className="flex items-center">
                       {isPageLoading ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-400"></span>
-                          </span>
-                          <Loader2 className="w-3.5 h-3.5 text-teal-400 animate-spin opacity-85" />
+                        <div className="flex items-center gap-1 px-1 py-0.5" title="Loading...">
+                          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 dot-pulse-1 shadow-sm shadow-teal-400/50"></span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 dot-pulse-2 shadow-sm shadow-teal-400/50"></span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 dot-pulse-3 shadow-sm shadow-teal-400/50"></span>
                         </div>
                       ) : (
-                        <div className="w-1.5 h-1.5 rounded-full bg-teal-400 shadow-sm shadow-teal-400/50"></div>
+                        <div className="w-1.5 h-1.5 rounded-full bg-teal-400/80 shadow-sm shadow-teal-400/50"></div>
                       )}
                     </div>
                   )}

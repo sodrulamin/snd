@@ -130,6 +130,57 @@ public class DistributorService {
                 .map(this::mapToTransactionDto);
     }
 
+    @Transactional
+    public DistributorDto.DistributorResponse toggleDistributorStatus(Long id) {
+        User distributor = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Distributor not found: " + id));
+
+        if (!"DISTRIBUTOR".equalsIgnoreCase(distributor.getRole())) {
+            throw new IllegalArgumentException("User is not a distributor");
+        }
+
+        String newStatus = "ACTIVE".equalsIgnoreCase(distributor.getStatus()) ? "INACTIVE" : "ACTIVE";
+        distributor.setStatus(newStatus);
+        distributor = userRepository.save(distributor);
+        return mapToDistributorResponse(distributor);
+    }
+
+    @Transactional
+    public DistributorDto.DistributorResponse updateDistributorStatus(Long id, String status) {
+        User distributor = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Distributor not found: " + id));
+
+        if (!"DISTRIBUTOR".equalsIgnoreCase(distributor.getRole())) {
+            throw new IllegalArgumentException("User is not a distributor");
+        }
+
+        distributor.setStatus(status != null ? status.toUpperCase() : "ACTIVE");
+        distributor = userRepository.save(distributor);
+        return mapToDistributorResponse(distributor);
+    }
+
+    @Transactional
+    public void deleteDistributor(Long id) {
+        User distributor = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Distributor not found: " + id));
+
+        if (!"DISTRIBUTOR".equalsIgnoreCase(distributor.getRole())) {
+            throw new IllegalArgumentException("User is not a distributor");
+        }
+
+        List<SalesOrder> orders = salesOrderRepository.findByDistributorIdOrderByCreatedAtDesc(id);
+        if (!orders.isEmpty()) {
+            throw new IllegalStateException("Cannot delete distributor '" + distributor.getFullName() + "' because they have " + orders.size() + " recorded sales order(s). You can change their status to INACTIVE or SUSPENDED instead.");
+        }
+
+        List<DistributorTransaction> txns = transactionRepository.findByDistributorIdOrderByCreatedAtDesc(id);
+        if (!txns.isEmpty()) {
+            transactionRepository.deleteAll(txns);
+        }
+
+        userRepository.delete(distributor);
+    }
+
     private DistributorDto.DistributorResponse mapToDistributorResponse(User u) {
         List<SalesOrder> orders = salesOrderRepository.findByDistributorIdOrderByCreatedAtDesc(u.getId());
         BigDecimal totalPurchases = orders.stream()

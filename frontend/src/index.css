@@ -1,4 +1,4 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -39,4 +39,31 @@
 
 .glow-teal {
   box-shadow: 0 0 25px -5px rgba(20, 184, 166, 0.25);
+}
+
+/* 3-Dot Staggered Loading Animation */
+@keyframes dot-flashing {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(0.75);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+.dot-pulse-1 {
+  animation: dot-flashing 0.9s infinite ease-in-out;
+  animation-delay: 0s;
+}
+
+.dot-pulse-2 {
+  animation: dot-flashing 0.9s infinite ease-in-out;
+  animation-delay: 0.2s;
+}
+
+.dot-pulse-3 {
+  animation: dot-flashing 0.9s infinite ease-in-out;
+  animation-delay: 0.4s;
 }

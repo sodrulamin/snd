@@ -45,6 +45,29 @@ public class DistributorController {
         return ResponseEntity.ok(ApiResponse.success(distributorService.updateDistributor(id, request), "Distributor updated successfully"));
     }
 
+    @PatchMapping("/{id}/toggle-status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<DistributorDto.DistributorResponse>> toggleDistributorStatus(@PathVariable Long id) {
+        DistributorDto.DistributorResponse response = distributorService.toggleDistributorStatus(id);
+        return ResponseEntity.ok(ApiResponse.success(response, "Distributor status changed to " + response.getStatus()));
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<DistributorDto.DistributorResponse>> updateDistributorStatus(
+            @PathVariable Long id,
+            @RequestParam String status) {
+        DistributorDto.DistributorResponse response = distributorService.updateDistributorStatus(id, status);
+        return ResponseEntity.ok(ApiResponse.success(response, "Distributor status updated to " + response.getStatus()));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteDistributor(@PathVariable Long id) {
+        distributorService.deleteDistributor(id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Distributor deleted successfully"));
+    }
+
     @PostMapping("/wallet-adjustment")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<DistributorDto.TransactionDto>> processWalletAdjustment(

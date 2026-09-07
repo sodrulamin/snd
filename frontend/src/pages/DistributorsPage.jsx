@@ -13,9 +13,10 @@ import {
   ArrowUpRight, 
   ArrowDownLeft,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Trash2,
+  Power
 } from 'lucide-react';
-import Header from '../components/Header';
 import { distributorService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
@@ -31,6 +32,11 @@ export default function DistributorsPage() {
   const [showLedgerModal, setShowLedgerModal] = useState(false);
   const [selectedDistributor, setSelectedDistributor] = useState(null);
   const [transactions, setTransactions] = useState([]);
+
+  // Deletion State
+  const [deletingDistributor, setDeletingDistributor] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Forms
   const [distForm, setDistForm] = useState({
@@ -140,20 +146,53 @@ export default function DistributorsPage() {
       alert(err.response?.data?.message || 'Error processing wallet adjustment');
     }
   };
+  const handleToggleStatus = async (dist) => {
+    const isCurrentlyActive = dist.status === 'ACTIVE';
+    const confirmMsg = isCurrentlyActive
+      ? `Are you sure you want to disable distributor "${dist.fullName}" (@${dist.username})?\n\nThey will be blocked from logging in or receiving new wholesale sales orders until re-enabled.`
+      : `Are you sure you want to activate distributor "${dist.fullName}" (@${dist.username})?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await distributorService.toggleStatus(dist.id);
+      if (res.data?.success) {
+        await loadDistributors();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update distributor status');
+    }
+  };
+
+  const handleOpenDeleteModal = (dist) => {
+    setDeletingDistributor(dist);
+    setDeleteError('');
+  };
+
+  const handleDeleteDistributor = async () => {
+    if (!deletingDistributor) return;
+    try {
+      setIsDeleting(true);
+      setDeleteError('');
+      const res = await distributorService.delete(deletingDistributor.id);
+      if (res.data?.success) {
+        setDeletingDistributor(null);
+        await loadDistributors();
+      }
+    } catch (err) {
+      setDeleteError(err.response?.data?.message || 'Failed to delete distributor.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <Header
-        title="Distributor Network & Wallets"
-        subtitle="Manage wholesale partner profiles, credit lines, discount tiers, and ledger balances"
-        onRefresh={loadDistributors}
-      />
 
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
         <div>
           <h3 className="text-base font-bold text-white">Registered Distribution Partners</h3>
-          <p className="text-xs text-slate-400">Total {distributors.length} active wholesale partners in your network</p>
+          <p className="text-xs text-slate-400">Total {distributors.length} partners in your network</p>
         </div>
         {isAdmin && (
           <button
@@ -169,12 +208,18 @@ export default function DistributorsPage() {
       {/* Distributors Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {distributors.map((d) => (
-          <div key={d.id} className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 flex flex-col justify-between hover:border-teal-500/40 transition-all group">
+          <div key={d.id} className={`rounded-2xl bg-slate-900/80 border p-6 flex flex-col justify-between transition-all group ${
+            d.status === 'ACTIVE' ? 'border-slate-800 hover:border-teal-500/40' : 'border-amber-500/30 bg-slate-900/50 opacity-90'
+          }`}>
             <div>
               {/* Partner Card Header */}
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-500/20 to-emerald-500/10 border border-teal-500/30 flex items-center justify-center font-bold text-teal-300 text-lg">
+                  <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center font-bold text-lg ${
+                    d.status === 'ACTIVE' 
+                      ? 'bg-gradient-to-tr from-teal-500/20 to-emerald-500/10 border-teal-500/30 text-teal-300'
+                      : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                  }`}>
                     {d.fullName.charAt(0)}
                   </div>
                   <div>
@@ -182,8 +227,13 @@ export default function DistributorsPage() {
                     <p className="text-xs text-slate-400 font-mono">@{d.username}</p>
                   </div>
                 </div>
-                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  {d.status}
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                  d.status === 'ACTIVE'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${d.status === 'ACTIVE' ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                  {d.status === 'ACTIVE' ? 'ACTIVE' : 'DISABLED'}
                 </span>
               </div>
 
@@ -229,6 +279,28 @@ export default function DistributorsPage() {
               >
                 <History className="w-4 h-4" />
               </button>
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => handleToggleStatus(d)}
+                    className={`p-2 rounded-xl border transition ${
+                      d.status === 'ACTIVE'
+                        ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/20 hover:border-amber-500/40'
+                        : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20 hover:border-emerald-500/40'
+                    }`}
+                    title={d.status === 'ACTIVE' ? 'Disable Distributor' : 'Activate Distributor'}
+                  >
+                    <Power className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleOpenDeleteModal(d)}
+                    className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/40 transition"
+                    title="Delete Distributor"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         ))}
@@ -508,6 +580,55 @@ export default function DistributorsPage() {
                 className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold"
               >
                 Close Ledger
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Distributor Confirmation Modal */}
+      {deletingDistributor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="bg-slate-900 border border-red-500/30 rounded-3xl w-full max-w-md p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Delete Distributor</h3>
+                <p className="text-xs text-slate-400">Are you sure you want to delete this partner account?</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 mb-4 text-xs space-y-1.5 font-mono">
+              <p className="text-slate-300">Name: <strong className="text-white">{deletingDistributor.fullName}</strong></p>
+              <p className="text-slate-300">Username: <strong className="text-teal-400">@{deletingDistributor.username}</strong></p>
+              <p className="text-slate-300">Wallet Balance: <strong className="text-emerald-400">৳{Number(deletingDistributor.balance).toFixed(2)}</strong></p>
+              <p className="text-slate-300">Total Orders: <strong className="text-white">{deletingDistributor.totalOrdersCount || 0}</strong></p>
+            </div>
+
+            {deleteError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setDeletingDistributor(null)}
+                className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDeleteDistributor}
+                className="px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition shadow-lg shadow-red-500/20 disabled:opacity-50 flex items-center gap-2"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Distributor'}
               </button>
             </div>
           </div>

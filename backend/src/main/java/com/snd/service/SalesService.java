@@ -43,6 +43,10 @@ public class SalesService {
             throw new IllegalArgumentException("Selected user is not a distributor");
         }
 
+        if (!"ACTIVE".equalsIgnoreCase(distributor.getStatus())) {
+            throw new IllegalStateException("Cannot create order for distributor '" + distributor.getFullName() + "' because the account is currently " + distributor.getStatus() + ".");
+        }
+
         BigDecimal discountPercentage = request.getCustomDiscountPercentage() != null
                 ? request.getCustomDiscountPercentage()
                 : distributor.getDiscountRate();
