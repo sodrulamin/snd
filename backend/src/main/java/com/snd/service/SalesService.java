@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -115,8 +117,28 @@ public class SalesService {
 
                 for (long n = numStart; n <= numEnd; n++) {
                     String sNum = prefixStart + String.format("%0" + padLength + "d", n);
-                    RechargeCard card = rechargeCardRepository.findBySerialNumber(sNum)
-                            .orElseThrow(() -> new IllegalArgumentException("Card with serial number '" + sNum + "' not found in inventory!"));
+                    RechargeCard card = rechargeCardRepository.findBySerialNumber(sNum).orElse(null);
+                    if (card == null) {
+                        CardBatch matchingBatch = null;
+                        List<CardBatch> batches = batchRepository.findByDenominationId(denomination.getId());
+                        for (CardBatch b : batches) {
+                            if (isSerialInBatch(sNum, b)) {
+                                matchingBatch = b;
+                                break;
+                            }
+                        }
+                        if (matchingBatch == null) {
+                            throw new IllegalArgumentException("Card with serial number '" + sNum + "' not found in inventory!");
+                        }
+                        card = RechargeCard.builder()
+                                .serialNumber(sNum)
+                                .denomination(denomination)
+                                .batch(matchingBatch)
+                                .status("IN_STOCK")
+                                .expiryDate(denomination.getAvailableUntil() != null ? denomination.getAvailableUntil() : LocalDate.now().plusYears(1))
+                                .build();
+                        card = rechargeCardRepository.save(card);
+                    }
 
                     if (!card.getDenomination().getId().equals(denomination.getId())) {
                         throw new IllegalArgumentException("Card '" + sNum + "' belongs to [" + card.getDenomination().getCode() + "] " + card.getDenomination().getName() + ", not " + denomination.getName());
@@ -156,8 +178,11 @@ public class SalesService {
                 throw new IllegalArgumentException("Start and End serial numbers are required for each card product in the order");
             }
 
+            BigDecimal unitWholesalePrice = denomination.getWholesalePrice() != null
+                    ? denomination.getWholesalePrice()
+                    : (denomination.getRetailPrice() != null ? denomination.getRetailPrice() : denomination.getFaceValue());
             BigDecimal itemDiscount = itemReq.getItemDiscountPercent() != null ? itemReq.getItemDiscountPercent() : discountPercentage;
-            BigDecimal subtotalFace = denomination.getFaceValue().multiply(BigDecimal.valueOf(itemQty));
+            BigDecimal subtotalFace = unitWholesalePrice.multiply(BigDecimal.valueOf(itemQty));
             BigDecimal itemDiscountAmount = subtotalFace.multiply(itemDiscount).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             BigDecimal subtotalFinal = subtotalFace.subtract(itemDiscountAmount);
 
@@ -174,8 +199,8 @@ public class SalesService {
                     .quantity(itemQty)
                     .startSerialNumber(startSerial)
                     .endSerialNumber(endSerial)
-                    .serialRange(serialRange)
-                    .unitFaceValue(denomination.getFaceValue())
+//                    .serialRange(serialRange)
+                    .unitFaceValue(unitWholesalePrice)
                     .subtotalFaceValue(subtotalFace)
                     .itemDiscountPercent(itemDiscount)
                     .subtotalFinal(subtotalFinal)
@@ -287,7 +312,7 @@ public class SalesService {
                 .batchNumber(i.getBatch() != null ? i.getBatch().getBatchNumber() : null)
                 .startSerialNumber(i.getStartSerialNumber())
                 .endSerialNumber(i.getEndSerialNumber())
-                .serialRange(i.getSerialRange())
+//                .serialRange(i.getSerialRange())
                 .quantity(i.getQuantity())
                 .subtotalFaceValue(i.getSubtotalFaceValue())
                 .itemDiscountPercent(i.getItemDiscountPercent())
@@ -315,5 +340,27 @@ public class SalesService {
                 .createdAt(o.getCreatedAt())
                 .items(itemDtos)
                 .build();
+    }
+
+    private boolean isSerialInBatch(String serial, CardBatch batch) {
+        if (!StringUtils.hasText(batch.getStartSerialNumber()) || !StringUtils.hasText(batch.getEndSerialNumber())) {
+            return false;
+        }
+        Pattern pattern = Pattern.compile("^(.*?)(\\d+)$");
+        Matcher mTarget = pattern.matcher(serial.trim());
+        Matcher mStart = pattern.matcher(batch.getStartSerialNumber().trim());
+        Matcher mEnd = pattern.matcher(batch.getEndSerialNumber().trim());
+        if (mTarget.matches() && mStart.matches() && mEnd.matches()) {
+            String p1 = mTarget.group(1);
+            String p2 = mStart.group(1);
+            String p3 = mEnd.group(1);
+            if (p1.equals(p2) && p2.equals(p3)) {
+                long tNum = Long.parseLong(mTarget.group(2));
+                long sNum = Long.parseLong(mStart.group(2));
+                long eNum = Long.parseLong(mEnd.group(2));
+                return tNum >= sNum && tNum <= eNum;
+            }
+        }
+        return false;
     }
 }

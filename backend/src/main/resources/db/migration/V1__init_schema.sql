@@ -41,16 +41,18 @@ CREATE TABLE IF NOT EXISTS card_batches (
     batch_number VARCHAR(100) NOT NULL UNIQUE,
     denomination_id BIGINT NOT NULL,
     quantity INT NOT NULL,
+    start_serial_number VARCHAR(50),
+    end_serial_number VARCHAR(50),
     total_face_value DECIMAL(15, 2) NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'AVAILABLE',
     generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expiry_date DATE NOT NULL,
     notes TEXT,
     created_by VARCHAR(100),
     FOREIGN KEY (denomination_id) REFERENCES card_denominations(id) ON DELETE RESTRICT,
     INDEX idx_batch_number (batch_number),
     INDEX idx_batch_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 
 CREATE TABLE IF NOT EXISTS sales_orders (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -65,6 +67,7 @@ CREATE TABLE IF NOT EXISTS sales_orders (
     payment_status VARCHAR(50) NOT NULL DEFAULT 'PAID',
     order_status VARCHAR(50) NOT NULL DEFAULT 'COMPLETED',
     notes TEXT,
+    serial_ranges_summary TEXT,
     created_by VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -78,6 +81,8 @@ CREATE TABLE IF NOT EXISTS sales_order_items (
     order_id BIGINT NOT NULL,
     denomination_id BIGINT NOT NULL,
     batch_id BIGINT,
+    start_serial_number VARCHAR(50),
+    end_serial_number VARCHAR(50),
     quantity INT NOT NULL,
     unit_face_value DECIMAL(10, 2) NOT NULL,
     subtotal_face_value DECIMAL(15, 2) NOT NULL,

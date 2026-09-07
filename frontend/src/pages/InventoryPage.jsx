@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Layers, 
   ShieldCheck, 
@@ -12,6 +13,7 @@ import {
   Clock, 
   Plus,
   Trash2,
+  ShoppingCart,
   ArrowRight,
   Info
 } from 'lucide-react';
@@ -21,6 +23,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
 
 export default function InventoryPage() {
+  const navigate = useNavigate();
   const { setPageLoading } = usePageLoading();
   const [denominations, setDenominations] = useState([]);
   const [batches, setBatches] = useState([]);
@@ -158,6 +161,17 @@ export default function InventoryPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSellBatch = (batch) => {
+    navigate('/sales', {
+      state: {
+        openOrderModal: true,
+        denominationId: batch.denominationId,
+        startSerialNumber: batch.startSerialNumber,
+        endSerialNumber: batch.endSerialNumber
+      }
+    });
   };
 
   const handleDeleteBatch = async (batch) => {
@@ -346,16 +360,21 @@ export default function InventoryPage() {
                   </td>
                   <td className="p-3.5 text-center">
                     <div className="flex items-center justify-center gap-1.5">
-                      {isAdmin ? (
+                      <button
+                        onClick={() => handleSellBatch(b)}
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-teal-500/20 text-slate-400 hover:text-teal-300 border border-slate-700 hover:border-teal-500/30 transition shadow-sm"
+                        title={`Sell Lot ${b.batchNumber} (Create Wholesale Order)`}
+                      >
+                        <ShoppingCart className="w-4 h-4 text-teal-400" />
+                      </button>
+                      {isAdmin && (
                         <button
                           onClick={() => handleDeleteBatch(b)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/30 transition"
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/30 transition shadow-sm"
                           title="Delete Inventory Lot"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
-                      ) : (
-                        <span className="text-slate-600">—</span>
                       )}
                     </div>
                   </td>

@@ -34,8 +34,8 @@ public class SalesOrderItem {
     @Column(name = "end_serial_number", length = 50)
     private String endSerialNumber;
 
-    @Column(name = "serial_range", length = 120)
-    private String serialRange;
+//    @Column(name = "serial_range", length = 120)
+//    private String serialRange;
 
     @Column(nullable = false)
     private Integer quantity;

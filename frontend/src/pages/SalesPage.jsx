@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { 
   Plus, 
   Trash2, 
@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import InvoiceModal from '../components/InvoiceModal';
+import SearchableDistributorSelect from '../components/SearchableDistributorSelect';
+import SearchableProductSelect from '../components/SearchableProductSelect';
 import { salesService, distributorService, inventoryService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
@@ -27,9 +29,11 @@ import { usePageLoading } from '../context/PageLoadingContext';
 export default function SalesPage() {
   const { setPageLoading } = usePageLoading();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [distributors, setDistributors] = useState([]);
   const [denominations, setDenominations] = useState([]);
+  const [batches, setBatches] = useState([]);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -54,16 +58,18 @@ export default function SalesPage() {
   ]);
 
   // Serial range calculator helper for selling
-  const calculateItemRange = (start, end) => {
+  const calculateItemRange = (start, end, denomId) => {
     if (!start || !end) return null;
-    const s = start.trim();
-    const e = end.trim();
+    const s = String(start).trim();
+    const e = String(end).trim();
+    if (!s || !e) return null;
+
     const regex = /^(.*?)(\d+)$/;
     const m1 = s.match(regex);
     const m2 = e.match(regex);
 
     if (!m1 || !m2) {
-      return { valid: false, error: 'Serials must end with numbers (e.g. 100001 or SN-100-0001)' };
+      return { valid: false, error: 'Serials must end with numeric digits (e.g. 100001 or SN-100-0001)' };
     }
     if (m1[1] !== m2[1]) {
       return { valid: false, error: `Prefix mismatch: "${m1[1]}" vs "${m2[1]}"` };
@@ -75,8 +81,39 @@ export default function SalesPage() {
     }
     const count = n2 - n1 + 1;
     if (count > 10000) {
-      return { valid: false, error: 'Max 10,000 cards per item' };
+      return { valid: false, error: 'Maximum 10,000 cards per order line' };
     }
+
+    // Check if the requested range is within available stock batches for this product
+    if (denomId && batches && batches.length > 0) {
+      const denomBatches = batches.filter(b => String(b.denominationId) === String(denomId));
+      if (denomBatches.length > 0) {
+        const matchingBatch = denomBatches.find(b => {
+          if (!b.startSerialNumber || !b.endSerialNumber) return false;
+          const bM1 = b.startSerialNumber.trim().match(regex);
+          const bM2 = b.endSerialNumber.trim().match(regex);
+          if (!bM1 || !bM2 || bM1[1] !== bM2[1]) return false;
+          if (bM1[1] !== m1[1]) return false;
+          const bN1 = parseInt(bM1[2], 10);
+          const bN2 = parseInt(bM2[2], 10);
+          return n1 >= bN1 && n2 <= bN2;
+        });
+
+        if (!matchingBatch) {
+          const availableRanges = denomBatches
+            .filter(b => b.startSerialNumber && b.endSerialNumber)
+            .map(b => `${b.startSerialNumber} ~ ${b.endSerialNumber}`)
+            .join(', ');
+          return {
+            valid: false,
+            error: availableRanges
+              ? `Serial range is outside available inventory stock (${availableRanges})`
+              : 'Serial range is outside available inventory stock for this product'
+          };
+        }
+      }
+    }
+
     return { valid: true, count, prefix: m1[1] };
   };
 
@@ -143,10 +180,11 @@ export default function SalesPage() {
   const loadData = async (page = 0) => {
     try {
       setLoading(true);
-      const [ordersRes, distsRes, denomsRes] = await Promise.all([
+      const [ordersRes, distsRes, denomsRes, batchesRes] = await Promise.all([
         salesService.getOrders({ page, size: 15 }),
         distributorService.getAll(),
         inventoryService.getActiveDenominations(),
+        inventoryService.getBatches(),
       ]);
 
       if (ordersRes.data?.success) {
@@ -154,15 +192,27 @@ export default function SalesPage() {
         setTotalPages(ordersRes.data.data.totalPages);
         setCurrentPage(page);
       }
-      if (distsRes.data?.success) setDistributors(distsRes.data.data);
+      if (distsRes.data?.success) {
+        const distsList = distsRes.data.data;
+        setDistributors(distsList);
+        const activeDist = distsList.find(d => d.status === 'ACTIVE') || distsList[0];
+        if (activeDist) {
+          setSelectedDistributorId(prev => prev || String(activeDist.id));
+        }
+      }
+      if (batchesRes.data?.success) setBatches(batchesRes.data.data);
       if (denomsRes.data?.success) {
         const denomsList = denomsRes.data.data;
         setDenominations(denomsList);
-        if (denomsList.length > 0 && (!orderItems[0].denominationId || !orderItems[0].startSerialNumber)) {
-          const firstDenomId = denomsList[0].id;
-          prefillSerialRangeForItem(0, firstDenomId, [
-            { denominationId: firstDenomId, startSerialNumber: '', endSerialNumber: '', availableStockInfo: null }
-          ]);
+        const inStockDenoms = denomsList.filter(d => (d.availableStock || 0) > 0);
+        const navState = location.state;
+        if (!navState?.startSerialNumber && (!orderItems[0]?.denominationId || !orderItems[0]?.startSerialNumber)) {
+          const firstDenomId = inStockDenoms.length > 0 ? inStockDenoms[0].id : (denomsList[0]?.id || '');
+          if (firstDenomId) {
+            prefillSerialRangeForItem(0, firstDenomId, [
+              { denominationId: firstDenomId, startSerialNumber: '', endSerialNumber: '', availableStockInfo: null }
+            ]);
+          }
         }
       }
     } catch (err) {
@@ -190,16 +240,29 @@ export default function SalesPage() {
 
   useEffect(() => {
     loadData(0);
-    if (searchParams.get('action') === 'new') {
+    const navState = location.state;
+    if (navState?.openOrderModal || searchParams.get('action') === 'new') {
       setShowOrderModal(true);
+      if (navState?.denominationId && navState?.startSerialNumber && navState?.endSerialNumber) {
+        setOrderItems([
+          {
+            denominationId: String(navState.denominationId),
+            startSerialNumber: navState.startSerialNumber,
+            endSerialNumber: navState.endSerialNumber,
+            availableStockInfo: null
+          }
+        ]);
+      }
     }
-  }, []);
+  }, [location.state]);
 
   const activeDistributor = distributors.find((d) => String(d.id) === String(selectedDistributorId));
 
   const handleAddItemRow = () => {
-    if (denominations.length === 0) return;
-    const defaultDenomId = denominations[0].id;
+    const inStockDenoms = denominations.filter(d => (d.availableStock || 0) > 0);
+    const targetList = inStockDenoms.length > 0 ? inStockDenoms : denominations;
+    if (targetList.length === 0) return;
+    const defaultDenomId = targetList[0].id;
     const newIdx = orderItems.length;
     const newItems = [...orderItems, { denominationId: defaultDenomId, startSerialNumber: '', endSerialNumber: '', availableStockInfo: null }];
     setOrderItems(newItems);
@@ -213,14 +276,23 @@ export default function SalesPage() {
 
   const handleItemChange = (idx, field, val) => {
     const updated = [...orderItems];
-    updated[idx][field] = val;
     
-    // When product/denomination changes, automatically pre-fill available serial range
+    // When product/denomination changes, automatically pre-fill available serial range cleanly
     if (field === 'denominationId') {
+      const denomBatch = batches.find(b => String(b.denominationId) === String(val) && b.startSerialNumber && b.endSerialNumber);
+      updated[idx] = {
+        ...updated[idx],
+        denominationId: val,
+        startSerialNumber: denomBatch ? denomBatch.startSerialNumber : '',
+        endSerialNumber: denomBatch ? denomBatch.endSerialNumber : '',
+        availableStockInfo: null
+      };
       setOrderItems(updated);
       prefillSerialRangeForItem(idx, val, updated);
       return;
     }
+    
+    updated[idx][field] = val;
     setOrderItems(updated);
   };
 
@@ -230,18 +302,39 @@ export default function SalesPage() {
 
   const calculatedGross = orderItems.reduce((acc, item) => {
     const denom = denominations.find((d) => String(d.id) === String(item.denominationId));
-    const range = calculateItemRange(item.startSerialNumber, item.endSerialNumber);
+    const range = calculateItemRange(item.startSerialNumber, item.endSerialNumber, item.denominationId);
     const qty = range && range.valid ? range.count : 0;
-    return acc + (denom ? (denom.retailPrice || denom.faceValue) * qty : 0);
+    const unitPrice = denom ? Number(denom.wholesalePrice != null ? denom.wholesalePrice : (denom.retailPrice || denom.faceValue || 0)) : 0;
+    return acc + (unitPrice * qty);
   }, 0);
 
   const calculatedDiscount = (calculatedGross * currentDiscountRate) / 100;
   const calculatedNet = calculatedGross - calculatedDiscount;
 
+  const hasRangeError = orderItems.some((item) => {
+    if (!item.startSerialNumber || !item.endSerialNumber) return false;
+    const range = calculateItemRange(item.startSerialNumber, item.endSerialNumber, item.denominationId);
+    return range && !range.valid;
+  });
+
+  const isFormIncomplete = !selectedDistributorId ||
+    orderItems.length === 0 ||
+    orderItems.some((item) => !item.denominationId || !item.startSerialNumber || !item.endSerialNumber);
+
+  const hasOrderFormErrors = hasRangeError || isFormIncomplete;
+
   const handleOpenOrderModal = () => {
     setShowOrderModal(true);
-    if (denominations.length > 0) {
-      const firstDenomId = denominations[0].id;
+    if (!selectedDistributorId && distributors.length > 0) {
+      const activeDist = distributors.find(d => d.status === 'ACTIVE') || distributors[0];
+      if (activeDist) {
+        setSelectedDistributorId(String(activeDist.id));
+      }
+    }
+    const inStockDenoms = denominations.filter(d => (d.availableStock || 0) > 0);
+    const targetList = inStockDenoms.length > 0 ? inStockDenoms : denominations;
+    if (targetList.length > 0) {
+      const firstDenomId = targetList[0].id;
       setOrderItems([
         { denominationId: firstDenomId, startSerialNumber: '', endSerialNumber: '', availableStockInfo: null }
       ]);
@@ -273,7 +366,7 @@ export default function SalesPage() {
         setFormError(`Item #${i + 1}: Please specify both Start and End Serial Numbers.`);
         return;
       }
-      const range = calculateItemRange(item.startSerialNumber, item.endSerialNumber);
+      const range = calculateItemRange(item.startSerialNumber, item.endSerialNumber, item.denominationId);
       if (!range || !range.valid) {
         setFormError(`Item #${i + 1}: ${range?.error || 'Invalid serial range format'}`);
         return;
@@ -620,19 +713,13 @@ export default function SalesPage() {
                   <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">
                     Distributor Partner <span className="text-teal-400">*</span>
                   </label>
-                  <select
+                  <SearchableDistributorSelect
                     required
                     value={selectedDistributorId}
-                    onChange={(e) => setSelectedDistributorId(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
-                  >
-                    <option value="">-- Choose Distributor --</option>
-                    {distributors.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.companyName || d.fullName} (Disc: {d.discountRate || 0}%, Bal: ৳{Number(d.balance || 0).toFixed(2)})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setSelectedDistributorId(val)}
+                    distributors={distributors}
+                    placeholder="-- Search or Choose Distributor --"
+                  />
                 </div>
 
                 <div>
@@ -661,26 +748,38 @@ export default function SalesPage() {
                     onClick={handleAddItemRow}
                     className="text-xs text-teal-400 hover:text-teal-300 font-bold flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 transition"
                   >
-                    <Plus className="w-3.5 h-3.5" /> Add Card Product
+                    <Plus className="w-3.5 h-3.5" /> Add
                   </button>
                 </div>
 
                 {orderItems.map((item, idx) => {
                   const selectedDenomObj = denominations.find(d => String(d.id) === String(item.denominationId));
-                  const range = calculateItemRange(item.startSerialNumber, item.endSerialNumber);
+                  const range = calculateItemRange(item.startSerialNumber, item.endSerialNumber, item.denominationId);
                   const stockInfo = item.availableStockInfo;
 
                   return (
                     <div key={idx} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3 relative group">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-teal-400 uppercase tracking-wide">
+                      {/* Item # and Product Selector in One Line */}
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[11px] font-bold text-teal-400 uppercase tracking-wide px-2 py-2 rounded-xl bg-teal-500/10 border border-teal-500/20 flex-shrink-0">
                           Item #{idx + 1}
                         </span>
+
+                        <div className="flex-1 min-w-0">
+                          <SearchableProductSelect
+                            required
+                            value={item.denominationId}
+                            onChange={(val) => handleItemChange(idx, 'denominationId', val)}
+                            products={denominations.filter(d => (d.availableStock || 0) > 0 || String(d.id) === String(item.denominationId))}
+                            placeholder="-- Search or Choose Card Product --"
+                          />
+                        </div>
+
                         {orderItems.length > 1 && (
                           <button
                             type="button"
                             onClick={() => handleRemoveItemRow(idx)}
-                            className="text-slate-500 hover:text-red-400 p-1 rounded-lg transition"
+                            className="text-slate-500 hover:text-red-400 p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-red-500/30 transition flex-shrink-0"
                             title="Remove item"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -688,100 +787,55 @@ export default function SalesPage() {
                         )}
                       </div>
 
-                      {/* Product Selector */}
-                      <div>
-                        <label className="block text-[11px] font-medium text-slate-400 mb-1">
-                          Select Card Product <span className="text-teal-400">*</span>
-                        </label>
-                        <select
-                          value={item.denominationId}
-                          onChange={(e) => handleItemChange(idx, 'denominationId', e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
-                        >
-                          {denominations.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              [{d.code || 'IPTSP'}] {d.name} (৳{Number(d.retailPrice || d.faceValue).toFixed(0)}) — In-Stock: {d.availableStock}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Serial Range Section */}
-                      <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5">
-                        <div className="flex flex-wrap items-center justify-between gap-1">
-                          <span className="text-[11px] font-semibold text-slate-300 uppercase flex items-center gap-1">
-                            <Hash className="w-3.5 h-3.5 text-teal-400" />
-                            Serial Number Range
-                          </span>
-                          {stockInfo?.available ? (
-                            <span className="text-[10px] text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded border border-teal-500/20 font-mono flex items-center gap-1">
-                              <Sparkles className="w-3 h-3" />
-                              Auto-filled Available Stock: {stockInfo.startSerialNumber} ~ {stockInfo.endSerialNumber} ({stockInfo.availableCount} cards)
-                            </span>
-                          ) : stockInfo && !stockInfo.available ? (
-                            <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 font-medium">
-                              ⚠️ No in-stock cards available for this product
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[10px] font-medium text-slate-400 mb-1">
-                              Start Serial Number <span className="text-teal-400">*</span>
-                            </label>
+                      {/* Serial Range, Allocation & Subtotal in One Line */}
+                      <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                          <div className="flex-1 min-w-[130px]">
                             <input
                               type="text"
                               required
-                              placeholder="e.g. SN-100-0001"
+                              placeholder="Start Serial"
                               value={item.startSerialNumber}
                               onChange={(e) => handleItemChange(idx, 'startSerialNumber', e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-teal-500"
+                              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-teal-500 placeholder:font-normal placeholder:text-slate-500"
                             />
                           </div>
 
-                          <div>
-                            <label className="block text-[10px] font-medium text-slate-400 mb-1">
-                              End Serial Number <span className="text-teal-400">*</span>
-                            </label>
+                          <span className="text-slate-500 font-mono font-bold">~</span>
+
+                          <div className="flex-1 min-w-[130px]">
                             <input
                               type="text"
                               required
-                              placeholder="e.g. SN-100-0050"
+                              placeholder="End Serial"
                               value={item.endSerialNumber}
                               onChange={(e) => handleItemChange(idx, 'endSerialNumber', e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-teal-500"
+                              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-teal-500 placeholder:font-normal placeholder:text-slate-500"
                             />
                           </div>
+
+                          {range && range.valid && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/30 text-xs flex-shrink-0">
+                              <div className="flex items-center gap-1 text-teal-300">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-teal-400 flex-shrink-0" />
+                                <span>
+                                  Allocating: <strong className="text-white font-mono">{range.count.toLocaleString()}</strong> cards
+                                </span>
+                              </div>
+                              {selectedDenomObj && (
+                                <span className="font-mono text-teal-300 font-bold pl-2 border-l border-teal-500/30">
+                                  ৳{(range.count * Number(selectedDenomObj.wholesalePrice != null ? selectedDenomObj.wholesalePrice : (selectedDenomObj.retailPrice || selectedDenomObj.faceValue || 0))).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
 
-                        {/* Range validation & live calculation */}
-                        {range && (
-                          <div className={`p-2.5 rounded-lg border text-xs flex items-center justify-between ${
-                            range.valid
-                              ? 'bg-teal-500/10 border-teal-500/30 text-teal-300'
-                              : 'bg-red-500/10 border-red-500/30 text-red-400'
-                          }`}>
-                            {range.valid ? (
-                              <>
-                                <div className="flex items-center gap-1.5">
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />
-                                  <span>
-                                    Allocating: <strong>{range.count.toLocaleString()} cards</strong>
-                                  </span>
-                                </div>
-                                {selectedDenomObj && (
-                                  <span className="font-mono text-white font-bold">
-                                    Subtotal: ৳{(range.count * Number(selectedDenomObj.retailPrice || selectedDenomObj.faceValue || 0)).toFixed(2)}
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <div className="flex items-center gap-1.5">
-                                <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
-                                <span>{range.error}</span>
-                              </div>
-                            )}
+                        {/* Error Message if range is invalid */}
+                        {range && !range.valid && (
+                          <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400 flex items-center gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                            <span>{range.error}</span>
                           </div>
                         )}
                       </div>
@@ -823,11 +877,11 @@ export default function SalesPage() {
               {/* Calculated Summary Box */}
               <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-400">
-                  <span>Gross Face Value:</span>
+                  <span>Wholesale Value:</span>
                   <span className="font-mono text-white">৳{calculatedGross.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-emerald-400">
-                  <span>Discount Applied ({currentDiscountRate}%):</span>
+                  <span>Distributor Discount ({currentDiscountRate}%):</span>
                   <span className="font-mono">-৳{calculatedDiscount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-sm text-white pt-1 border-t border-slate-800">
@@ -847,10 +901,10 @@ export default function SalesPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 text-xs font-bold hover:from-teal-300 hover:to-emerald-300 transition shadow-lg shadow-teal-500/20 disabled:opacity-50"
+                  disabled={isSubmitting || hasOrderFormErrors}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 text-xs font-bold hover:from-teal-300 hover:to-emerald-300 transition shadow-lg shadow-teal-500/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-400 disabled:shadow-none"
                 >
-                  {isSubmitting ? 'Allocating Serials...' : 'Confirm & Dispatch Order'}
+                  {isSubmitting ? 'Confirming...' : 'Confirm'}
                 </button>
               </div>
             </form>

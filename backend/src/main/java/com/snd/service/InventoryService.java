@@ -211,7 +211,33 @@ public class InventoryService {
     }
 
     private InventoryDto.DenominationResponse mapToDenominationResponse(CardDenomination d) {
-        long available = rechargeCardRepository.countByDenominationIdAndStatus(d.getId(), "IN_STOCK");
+        List<CardBatch> batches = batchRepository.findByDenominationId(d.getId());
+        long available = 0;
+        for (CardBatch b : batches) {
+            long batchCount = 0;
+            if (StringUtils.hasText(b.getStartSerialNumber()) && StringUtils.hasText(b.getEndSerialNumber())) {
+                try {
+                    Pattern pattern = Pattern.compile("^(.*?)(\\d+)$");
+                    Matcher mStart = pattern.matcher(b.getStartSerialNumber().trim());
+                    Matcher mEnd = pattern.matcher(b.getEndSerialNumber().trim());
+                    if (mStart.matches() && mEnd.matches() && mStart.group(1).equals(mEnd.group(1))) {
+                        long start = Long.parseLong(mStart.group(2));
+                        long end = Long.parseLong(mEnd.group(2));
+                        if (end >= start) {
+                            batchCount = end - start + 1;
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+            if (batchCount == 0 && b.getQuantity() != null) {
+                batchCount = b.getQuantity();
+            }
+            available += batchCount;
+        }
+
+        if (available == 0) {
+            available = rechargeCardRepository.countByDenominationIdAndStatus(d.getId(), "IN_STOCK");
+        }
         long sold = rechargeCardRepository.countByDenominationIdAndStatus(d.getId(), "SOLD");
         BigDecimal retail = d.getRetailPrice() != null ? d.getRetailPrice() : d.getFaceValue();
         BigDecimal wholesale = d.getWholesalePrice() != null ? d.getWholesalePrice() : retail;
@@ -257,6 +283,8 @@ public class InventoryService {
             inStock = b.getQuantity();
         }
 
+        log.info("Batch id: {} number: {} in stock: {}", b.getId(), b.getBatchNumber(), inStock);
+
         long sold = 0;
         BigDecimal retail = b.getDenomination().getRetailPrice() != null ? b.getDenomination().getRetailPrice() : b.getDenomination().getFaceValue();
         BigDecimal wholesale = b.getDenomination().getWholesalePrice() != null ? b.getDenomination().getWholesalePrice() : retail;
@@ -271,7 +299,7 @@ public class InventoryService {
             .retailPrice(retail)
             .wholesalePrice(wholesale)
             .currency(b.getDenomination().getCurrency())
-            .quantity(b.getQuantity() != null ? b.getQuantity() : (int) inStock)
+            .quantity((int) inStock)
             .startSerialNumber(b.getStartSerialNumber())
             .endSerialNumber(b.getEndSerialNumber())
             .inStockCount((int) inStock)
@@ -291,38 +319,67 @@ public class InventoryService {
         List<RechargeCard> availableCards = rechargeCardRepository.findAvailableCardsByDenomination(
             denominationId, PageRequest.of(0, 5000));
 
-        if (availableCards.isEmpty()) {
+        if (!availableCards.isEmpty()) {
+            RechargeCard firstCard = availableCards.get(0);
+            Long targetBatchId = firstCard.getBatch() != null ? firstCard.getBatch().getId() : null;
+
+            List<RechargeCard> batchRun = new ArrayList<>();
+            for (RechargeCard card : availableCards) {
+                Long cBatchId = card.getBatch() != null ? card.getBatch().getId() : null;
+                if (Objects.equals(cBatchId, targetBatchId)) {
+                    batchRun.add(card);
+                } else {
+                    break;
+                }
+            }
+
+            RechargeCard lastCard = batchRun.get(batchRun.size() - 1);
+
             return InventoryDto.AvailableSerialRangeResponse.builder()
                 .denominationId(denominationId)
                 .denominationName(denomination.getName())
-                .available(false)
-                .availableCount(0)
+                .available(true)
+                .startSerialNumber(firstCard.getSerialNumber())
+                .endSerialNumber(lastCard.getSerialNumber())
+                .availableCount(batchRun.size())
+                .batchNumber(firstCard.getBatch() != null ? firstCard.getBatch().getBatchNumber() : null)
                 .build();
         }
 
-        RechargeCard firstCard = availableCards.get(0);
-        Long targetBatchId = firstCard.getBatch() != null ? firstCard.getBatch().getId() : null;
-
-        List<RechargeCard> batchRun = new ArrayList<>();
-        for (RechargeCard card : availableCards) {
-            Long cBatchId = card.getBatch() != null ? card.getBatch().getId() : null;
-            if (Objects.equals(cBatchId, targetBatchId)) {
-                batchRun.add(card);
-            } else {
-                break;
+        List<CardBatch> batches = batchRepository.findByDenominationId(denominationId);
+        if (!batches.isEmpty()) {
+            CardBatch b = batches.get(0);
+            long count = b.getQuantity() != null ? b.getQuantity() : 0;
+            if (StringUtils.hasText(b.getStartSerialNumber()) && StringUtils.hasText(b.getEndSerialNumber())) {
+                try {
+                    Pattern pattern = Pattern.compile("^(.*?)(\\d+)$");
+                    Matcher mStart = pattern.matcher(b.getStartSerialNumber().trim());
+                    Matcher mEnd = pattern.matcher(b.getEndSerialNumber().trim());
+                    if (mStart.matches() && mEnd.matches() && mStart.group(1).equals(mEnd.group(1))) {
+                        long start = Long.parseLong(mStart.group(2));
+                        long end = Long.parseLong(mEnd.group(2));
+                        if (end >= start) {
+                            count = end - start + 1;
+                        }
+                    }
+                } catch (Exception ignored) {}
             }
+            return InventoryDto.AvailableSerialRangeResponse.builder()
+                .denominationId(denominationId)
+                .denominationName(denomination.getName())
+                .available(true)
+                .startSerialNumber(b.getStartSerialNumber())
+                .endSerialNumber(b.getEndSerialNumber())
+                .availableCount((int) count)
+                .batchNumber(b.getBatchNumber())
+                .build();
         }
-
-        RechargeCard lastCard = batchRun.get(batchRun.size() - 1);
 
         return InventoryDto.AvailableSerialRangeResponse.builder()
             .denominationId(denominationId)
             .denominationName(denomination.getName())
-            .available(true)
-            .startSerialNumber(firstCard.getSerialNumber())
-            .endSerialNumber(lastCard.getSerialNumber())
-            .availableCount(batchRun.size())
-            .batchNumber(firstCard.getBatch() != null ? firstCard.getBatch().getBatchNumber() : null)
+            .available(false)
+            .availableCount(0)
             .build();
     }
 
