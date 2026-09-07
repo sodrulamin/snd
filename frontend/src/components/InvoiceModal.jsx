@@ -2,7 +2,6 @@ import React from 'react';
 import { 
   X, 
   Printer, 
-  Download, 
   PhoneCall, 
   ShieldCheck, 
   Calendar, 
@@ -30,15 +29,6 @@ export default function InvoiceModal({ invoice, onClose }) {
             <h3 className="font-semibold text-white">Sales Voucher & Official Invoice</h3>
           </div>
           <div className="flex items-center gap-2">
-            <a
-              href={inventoryService.exportCardsCsvUrl(null, order.id, true)}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 text-xs font-semibold border border-teal-500/30 transition"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Download PINs (CSV)
-            </a>
             <button
               onClick={handlePrint}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"

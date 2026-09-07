@@ -7,14 +7,9 @@ import com.snd.model.RechargeCard;
 import com.snd.repository.CardBatchRepository;
 import com.snd.repository.CardDenominationRepository;
 import com.snd.repository.RechargeCardRepository;
-import com.snd.util.CryptoUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 
 import java.util.Objects;
 
@@ -22,10 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.io.ByteArrayOutputStream;
-import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -218,46 +210,6 @@ public class InventoryService {
         return mapToBatchSummary(batch);
     }
 
-    public Page<InventoryDto.CardDetailDto> searchCards(Long batchId, Long denominationId, String status, Long distributorId, String serialNumber, Pageable pageable, boolean includePlainPin) {
-        return rechargeCardRepository.searchCards(batchId, denominationId, status, distributorId, serialNumber, pageable)
-            .map(card -> mapToCardDetail(card, includePlainPin));
-    }
-
-    public byte[] exportCardsCsv(Long batchId, Long orderId, boolean includePlainPin) {
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream();
-             OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
-             CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.builder().setHeader("Serial Number", "Denomination Code", "Denomination", "Face Value", "PIN", "Status", "Expiry Date", "Batch Number").build())) {
-
-            List<RechargeCard> cards;
-            if (orderId != null) {
-                cards = rechargeCardRepository.findByOrderId(orderId);
-            } else if (batchId != null) {
-                cards = rechargeCardRepository.findByBatchId(batchId);
-            } else {
-                cards = new ArrayList<>();
-            }
-
-            for (RechargeCard card : cards) {
-                String pin = includePlainPin ? CryptoUtil.decryptPin(card.getPinEncrypted()) : card.getPinMasked();
-                csvPrinter.printRecord(
-                    card.getSerialNumber(),
-                    card.getDenomination().getCode(),
-                    card.getDenomination().getName(),
-                    card.getDenomination().getFaceValue() + " " + card.getDenomination().getCurrency(),
-                    pin,
-                    card.getStatus(),
-                    card.getExpiryDate().toString(),
-                    card.getBatch().getBatchNumber()
-                );
-            }
-
-            csvPrinter.flush();
-            return out.toByteArray();
-        } catch (Exception e) {
-            throw new RuntimeException("Error generating CSV export", e);
-        }
-    }
-
     private InventoryDto.DenominationResponse mapToDenominationResponse(CardDenomination d) {
         long available = rechargeCardRepository.countByDenominationIdAndStatus(d.getId(), "IN_STOCK");
         long sold = rechargeCardRepository.countByDenominationIdAndStatus(d.getId(), "SOLD");
@@ -284,8 +236,28 @@ public class InventoryService {
     }
 
     private InventoryDto.BatchSummaryDto mapToBatchSummary(CardBatch b) {
-        long inStock = rechargeCardRepository.countByBatchIdAndStatus(b.getId(), "IN_STOCK");
-        long sold = rechargeCardRepository.countByBatchIdAndStatus(b.getId(), "SOLD");
+        long inStock = 0;
+        if (StringUtils.hasText(b.getStartSerialNumber()) && StringUtils.hasText(b.getEndSerialNumber())) {
+            try {
+                Pattern pattern = Pattern.compile("^(.*?)(\\d+)$");
+                Matcher mStart = pattern.matcher(b.getStartSerialNumber().trim());
+                Matcher mEnd = pattern.matcher(b.getEndSerialNumber().trim());
+                if (mStart.matches() && mEnd.matches() && mStart.group(1).equals(mEnd.group(1))) {
+                    long start = Long.parseLong(mStart.group(2));
+                    long end = Long.parseLong(mEnd.group(2));
+                    if (end >= start) {
+                        inStock = end - start + 1;
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Could not calculate inStock from serial range for batch {}: {}", b.getBatchNumber(), e.getMessage());
+            }
+        }
+        if (inStock == 0 && b.getQuantity() != null) {
+            inStock = b.getQuantity();
+        }
+
+        long sold = 0;
         BigDecimal retail = b.getDenomination().getRetailPrice() != null ? b.getDenomination().getRetailPrice() : b.getDenomination().getFaceValue();
         BigDecimal wholesale = b.getDenomination().getWholesalePrice() != null ? b.getDenomination().getWholesalePrice() : retail;
 
@@ -299,7 +271,7 @@ public class InventoryService {
             .retailPrice(retail)
             .wholesalePrice(wholesale)
             .currency(b.getDenomination().getCurrency())
-            .quantity(b.getQuantity())
+            .quantity(b.getQuantity() != null ? b.getQuantity() : (int) inStock)
             .startSerialNumber(b.getStartSerialNumber())
             .endSerialNumber(b.getEndSerialNumber())
             .inStockCount((int) inStock)
@@ -309,36 +281,6 @@ public class InventoryService {
             .generatedAt(b.getGeneratedAt())
             .notes(b.getNotes())
             .createdBy(b.getCreatedBy())
-            .build();
-    }
-
-    private InventoryDto.CardDetailDto mapToCardDetail(RechargeCard card, boolean includePlainPin) {
-        BigDecimal retail = card.getDenomination().getRetailPrice() != null ? card.getDenomination().getRetailPrice() : card.getDenomination().getFaceValue();
-        BigDecimal wholesale = card.getDenomination().getWholesalePrice() != null ? card.getDenomination().getWholesalePrice() : retail;
-
-        return InventoryDto.CardDetailDto.builder()
-            .id(card.getId())
-            .batchId(card.getBatch().getId())
-            .batchNumber(card.getBatch().getBatchNumber())
-            .denominationId(card.getDenomination().getId())
-            .denominationCode(card.getDenomination().getCode())
-            .denominationName(card.getDenomination().getName())
-            .faceValue(card.getDenomination().getFaceValue())
-            .retailPrice(retail)
-            .wholesalePrice(wholesale)
-            .currency(card.getDenomination().getCurrency())
-            .serialNumber(card.getSerialNumber())
-            .pinMasked(null)
-            .pinPlain(null)
-            .status(card.getStatus())
-            .distributorId(card.getDistributor() != null ? card.getDistributor().getId() : null)
-            .distributorName(card.getDistributor() != null ? card.getDistributor().getFullName() : null)
-            .orderId(card.getOrder() != null ? card.getOrder().getId() : null)
-            .orderNumber(card.getOrder() != null ? card.getOrder().getOrderNumber() : null)
-            .soldAt(card.getSoldAt())
-            .redeemedAt(card.getRedeemedAt())
-            .expiryDate(card.getExpiryDate())
-            .createdAt(card.getCreatedAt())
             .build();
     }
 

@@ -52,15 +52,7 @@ export const inventoryService = {
   getAllBatches: () => api.get('/inventory/batches'),
   getBatchById: (id) => api.get(`/inventory/batches/${id}`),
   generateBatch: (data) => api.post('/inventory/batches/generate', data),
-  searchCards: (params) => api.get('/inventory/cards', { params }),
   getAvailableSerialRange: (denominationId) => api.get(`/inventory/denominations/${denominationId}/available-range`),
-  exportCardsCsvUrl: (batchId, orderId, includePlainPin) => {
-    const params = new URLSearchParams();
-    if (batchId) params.append('batchId', batchId);
-    if (orderId) params.append('orderId', orderId);
-    if (includePlainPin) params.append('includePlainPin', 'true');
-    return `/api/inventory/cards/export/csv?${params.toString()}`;
-  }
 };
 
 export const salesService = {

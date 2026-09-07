@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   Layers, 
   ShieldCheck, 
-  Eye, 
   Download, 
   Calendar, 
   Sparkles, 
@@ -36,9 +35,6 @@ export default function InventoryPage() {
 
   // Add Inventory Form State
   const [showBatchModal, setShowBatchModal] = useState(false);
-  const [selectedBatch, setSelectedBatch] = useState(null);
-  const [batchCards, setBatchCards] = useState([]);
-  const [loadingCards, setLoadingCards] = useState(false);
 
   const [batchForm, setBatchForm] = useState({
     denominationId: '',
@@ -185,23 +181,49 @@ export default function InventoryPage() {
     }
   };
 
-  const handleInspectBatch = async (batch) => {
-    setSelectedBatch(batch);
-    try {
-      setLoadingCards(true);
-      const res = await inventoryService.searchCards({
-        batchId: batch.id,
-        size: 50,
-        includePlainPin: true,
-      });
-      if (res.data?.success) {
-        setBatchCards(res.data.data.content);
-      }
-    } catch (err) {
-      console.error('Failed to load inventory cards', err);
-    } finally {
-      setLoadingCards(false);
+  const handleExportCsv = () => {
+    if (!batches || batches.length === 0) {
+      alert('No inventory batch data available to export.');
+      return;
     }
+
+    const headers = [
+      'SL',
+      'Inventory Lot #',
+      'Card Product',
+      'Card Code',
+      'Start Serial',
+      'End Serial',
+      'Quantity',
+      'Wholesale',
+      'Retail',
+      'Added Time'
+    ];
+
+    const rows = batches.map((b, idx) => [
+      idx + 1,
+      `"${b.batchNumber || ''}"`,
+      `"${b.denominationName || ''}"`,
+      `"${b.denominationCode || 'IPTSP'}"`,
+      `"${b.startSerialNumber || ''}"`,
+      `"${b.endSerialNumber || ''}"`,
+      b.quantity || 0,
+      Number(b.wholesalePrice || b.faceValue || 0).toFixed(2),
+      Number(b.totalFaceValue || 0).toFixed(2),
+      `"${b.generatedAt ? new Date(b.generatedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : ''}"`
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const today = new Date().toISOString().split('T')[0];
+    link.setAttribute('download', `IPTSP_Inventory_Batches_${today}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const totalBatches = batches.length;
@@ -252,38 +274,50 @@ export default function InventoryPage() {
             </div>
             <div>
               <h3 className="font-bold text-white text-base">Inventory Details</h3>
-              <p className="text-xs text-slate-400">Sequential serial ranges, encrypted card stock counts, and availability</p>
+              <p className="text-xs text-slate-400">Displaying only available card stock and sequential serial ranges</p>
             </div>
           </div>
 
-          <button
-            onClick={handleOpenAddModal}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 hover:from-teal-300 hover:to-emerald-300 transition shadow-lg shadow-teal-500/20"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Inventory</span>
-          </button>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={handleExportCsv}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-teal-300 hover:text-white border border-slate-700/80 hover:border-teal-500/30 transition shadow-sm"
+              title="Download all inventory batch details as CSV"
+            >
+              <Download className="w-4 h-4 text-teal-400" />
+              <span>Download CSV</span>
+            </button>
+
+            <button
+              onClick={handleOpenAddModal}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 hover:from-teal-300 hover:to-emerald-300 transition shadow-lg shadow-teal-500/20"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Inventory</span>
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
               <tr>
+                <th className="p-3.5 text-center w-12">SL</th>
                 <th className="p-3.5">Inventory Lot #</th>
                 <th className="p-3.5">Card Product & Code</th>
-                <th className="p-3.5">Serial Range (Start ~ End)</th>
+                <th className="p-3.5">Start Serial</th>
+                <th className="p-3.5">End Serial</th>
                 <th className="p-3.5 text-center">Quantity</th>
-                <th className="p-3.5 text-center">In Stock</th>
-                <th className="p-3.5 text-center">Sold</th>
-                <th className="p-3.5 text-right">Retail Value</th>
-                <th className="p-3.5 text-center">Status</th>
+                <th className="p-3.5 text-right">Wholesale</th>
+                <th className="p-3.5 text-right">Retail</th>
                 <th className="p-3.5 text-center">Added Time</th>
                 <th className="p-3.5 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {batches.map((b) => (
+              {batches.map((b, idx) => (
                 <tr key={b.id} className="hover:bg-slate-800/30 transition">
+                  <td className="p-3.5 text-center font-mono text-slate-400">{idx + 1}</td>
                   <td className="p-3.5 font-mono font-semibold text-white">
                     {b.batchNumber}
                   </td>
@@ -294,48 +328,25 @@ export default function InventoryPage() {
                     <span className="font-semibold text-white">{b.denominationName}</span>
                     <span className="text-teal-400 font-mono text-[11px] ml-1">(৳{Number(b.faceValue).toFixed(0)})</span>
                   </td>
-                  <td className="p-3.5 font-mono">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-teal-500/10 text-teal-300 text-[10px] font-semibold border border-teal-500/20">
-                      <Hash className="w-2.5 h-2.5 text-teal-400" />
-                      {b.startSerialNumber && b.endSerialNumber ? `${b.startSerialNumber} ~ ${b.endSerialNumber}` : 'N/A'}
-                    </span>
+                  <td className="p-3.5 font-mono text-slate-300 font-medium">
+                    {b.startSerialNumber || 'N/A'}
+                  </td>
+                  <td className="p-3.5 font-mono text-slate-300 font-medium">
+                    {b.endSerialNumber || 'N/A'}
                   </td>
                   <td className="p-3.5 text-center font-bold text-slate-300">{b.quantity}</td>
-                  <td className="p-3.5 text-center font-bold text-emerald-400">{b.inStockCount}</td>
-                  <td className="p-3.5 text-center font-bold text-slate-400">{b.soldCount}</td>
+                  <td className="p-3.5 text-right font-mono font-bold text-teal-400">
+                    ৳{Number(b.wholesalePrice || b.faceValue).toFixed(2)}
+                  </td>
                   <td className="p-3.5 text-right font-mono font-semibold text-slate-200">
                     ৳{Number(b.totalFaceValue).toFixed(2)}
-                  </td>
-                  <td className="p-3.5 text-center">
-                    <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                      b.status === 'AVAILABLE' ? 'bg-emerald-500/10 text-emerald-400' :
-                      b.status === 'PARTIALLY_SOLD' ? 'bg-amber-500/10 text-amber-400' : 'bg-slate-800 text-slate-400'
-                    }`}>
-                      {b.status}
-                    </span>
                   </td>
                   <td className="p-3.5 text-center text-slate-300 font-mono text-[11px]">
                     {b.generatedAt ? new Date(b.generatedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}
                   </td>
                   <td className="p-3.5 text-center">
                     <div className="flex items-center justify-center gap-1.5">
-                      <button
-                        onClick={() => handleInspectBatch(b)}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 transition"
-                        title="Inspect Serialized Cards"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <a
-                        href={inventoryService.exportCardsCsvUrl(b.id, null, true)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 transition"
-                        title="Export Card Stock CSV"
-                      >
-                        <Download className="w-4 h-4" />
-                      </a>
-                      {isAdmin && (
+                      {isAdmin ? (
                         <button
                           onClick={() => handleDeleteBatch(b)}
                           className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/30 transition"
@@ -343,6 +354,8 @@ export default function InventoryPage() {
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
+                      ) : (
+                        <span className="text-slate-600">—</span>
                       )}
                     </div>
                   </td>
@@ -519,76 +532,6 @@ export default function InventoryPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Inspect Inventory Modal */}
-      {selectedBatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl p-6 shadow-2xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <div>
-                <h3 className="text-lg font-bold text-white">Inventory Serial Cards Inspection</h3>
-                <p className="text-xs text-slate-400">
-                  {selectedBatch.batchNumber} ([{selectedBatch.denominationCode}] {selectedBatch.denominationName} - ৳{Number(selectedBatch.faceValue).toFixed(0)} × {selectedBatch.quantity} Cards)
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href={inventoryService.exportCardsCsvUrl(selectedBatch.id, null, true)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 text-xs font-semibold border border-teal-500/30"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Export Card Serials (CSV)
-                </a>
-                <button
-                  onClick={() => setSelectedBatch(null)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-xs font-semibold"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-
-            <div className="overflow-y-auto flex-1 my-4">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-950 text-slate-400 font-semibold sticky top-0">
-                  <tr>
-                    <th className="p-2.5">#</th>
-                    <th className="p-2.5">Serial Number</th>
-                    <th className="p-2.5 text-center">Status</th>
-                    <th className="p-2.5">Allocated Distributor</th>
-                    <th className="p-2.5">Order Number</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {batchCards.map((c, idx) => (
-                    <tr key={c.id} className="hover:bg-slate-800/30">
-                      <td className="p-2.5 text-slate-500">{idx + 1}</td>
-                      <td className="p-2.5 font-mono font-bold text-teal-300">{c.serialNumber}</td>
-                      <td className="p-2.5 text-center">
-                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                          c.status === 'IN_STOCK' ? 'bg-emerald-500/10 text-emerald-400' :
-                          c.status === 'SOLD' ? 'bg-blue-500/10 text-blue-400' : 'bg-purple-500/10 text-purple-400'
-                        }`}>
-                          {c.status}
-                        </span>
-                      </td>
-                      <td className="p-2.5 text-slate-300">{c.distributorName || '—'}</td>
-                      <td className="p-2.5 font-mono text-slate-400">{c.orderNumber || '—'}</td>
-                    </tr>
-                  ))}
-                  {batchCards.length === 0 && !loadingCards && (
-                    <tr>
-                      <td colSpan="5" className="p-6 text-center text-slate-500">No cards found in inventory lot.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
           </div>
         </div>
       )}
