@@ -6,7 +6,6 @@ import {
   ShoppingCart, 
   Users, 
   BarChart3, 
-  PhoneCall, 
   LogOut, 
   CreditCard,
   Tag
@@ -80,14 +79,14 @@ export default function Sidebar() {
               to={item.path}
               end={item.path === '/'}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm border outline-none focus:outline-none focus:ring-0 select-none transition-colors duration-150 ${
                   isActive
-                    ? 'bg-gradient-to-r from-teal-500/20 to-teal-500/5 text-teal-300 border border-teal-500/30 shadow-sm shadow-teal-500/10'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    ? 'bg-gradient-to-r from-teal-500/20 to-teal-500/5 text-teal-300 border-teal-500/30 shadow-sm shadow-teal-500/10'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border-transparent'
                 }`
               }
             >
-              <Icon className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
+              <Icon className="w-5 h-5 flex-shrink-0" />
               <span>{item.name}</span>
             </NavLink>
           );
@@ -98,7 +97,7 @@ export default function Sidebar() {
       <div className="p-4 border-t border-slate-800/80">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all duration-200 active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 outline-none focus:outline-none focus:ring-0 transition-colors duration-150 active:scale-[0.98]"
         >
           <LogOut className="w-4 h-4" />
           <span>Sign Out</span>

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, Lock, User, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+import { CreditCard, Lock, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { login } = useAuth();
@@ -24,11 +24,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickLogin = (u, p) => {
-    setUsername(u);
-    setPassword(p);
   };
 
   return (
@@ -102,38 +97,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Credentials */}
-          <div className="mt-8 pt-6 border-t border-slate-800/80">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center mb-3">
-              One-Click Demo Credentials
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('admin', 'admin123')}
-                className="p-2.5 rounded-xl bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 text-left transition group"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white">Admin Portal</span>
-                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                </div>
-                <p className="text-[11px] text-slate-400 mt-0.5">admin / admin123</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('dist_metro', 'dist123')}
-                className="p-2.5 rounded-xl bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 text-left transition group"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white">Distributor</span>
-                  <Sparkles className="w-3.5 h-3.5 text-teal-400" />
-                </div>
-                <p className="text-[11px] text-slate-400 mt-0.5">dist_metro / dist123</p>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* System Footnote */}
