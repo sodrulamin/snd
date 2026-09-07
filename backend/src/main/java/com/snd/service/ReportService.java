@@ -72,7 +72,7 @@ public class ReportService {
         LocalDateTime start = startDate != null ? startDate.atStartOfDay() : LocalDateTime.now().minusDays(30);
         LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : LocalDateTime.now();
 
-        List<SalesOrder> orders = orderRepository.filterOrders(null, null, start, end, PageRequest.of(0, 1000)).getContent();
+        List<SalesOrder> orders = orderRepository.filterOrders(null, null, null, start, end, null, PageRequest.of(0, 1000)).getContent();
 
         BigDecimal grossSales = orders.stream().map(SalesOrder::getTotalFaceValue).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalDiscounts = orders.stream().map(SalesOrder::getDiscountAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -107,7 +107,7 @@ public class ReportService {
             LocalDateTime monthStart = monthDate.withDayOfMonth(1).atStartOfDay();
             LocalDateTime monthEnd = monthDate.withDayOfMonth(monthDate.lengthOfMonth()).atTime(23, 59, 59);
 
-            List<SalesOrder> orders = orderRepository.filterOrders(null, null, monthStart, monthEnd, PageRequest.of(0, 10000)).getContent();
+            List<SalesOrder> orders = orderRepository.filterOrders(null, null, null, monthStart, monthEnd, null, PageRequest.of(0, 10000)).getContent();
 
             BigDecimal revenue = orders.stream().map(SalesOrder::getFinalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
             BigDecimal faceValue = orders.stream().map(SalesOrder::getTotalFaceValue).reduce(BigDecimal.ZERO, BigDecimal::add);

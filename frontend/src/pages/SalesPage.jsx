@@ -12,7 +12,11 @@ import {
   Calendar,
   DollarSign,
   ShoppingCart,
-  Sparkles
+  Sparkles,
+  Search,
+  X,
+  RotateCcw,
+  Filter
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import InvoiceModal from '../components/InvoiceModal';
@@ -29,6 +33,14 @@ export default function SalesPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterDistributorId, setFilterDistributorId] = useState('');
+  const [filterPaymentMethod, setFilterPaymentMethod] = useState('');
+  const [filterOrderStatus, setFilterOrderStatus] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -97,6 +109,37 @@ export default function SalesPage() {
     }
   };
 
+  const fetchOrders = async (page = 0, currentFilters = null) => {
+    try {
+      setLoading(true);
+      const activeFilters = currentFilters !== null ? currentFilters : {
+        search: searchQuery || undefined,
+        distributorId: filterDistributorId || undefined,
+        paymentMethod: filterPaymentMethod || undefined,
+        status: filterOrderStatus || undefined,
+        startDate: filterStartDate ? filterStartDate + 'T00:00:00' : undefined,
+        endDate: filterEndDate ? filterEndDate + 'T23:59:59' : undefined,
+      };
+
+      const res = await salesService.getOrders({
+        page,
+        size: 15,
+        ...activeFilters,
+      });
+
+      if (res.data?.success) {
+        setOrders(res.data.data.content);
+        setTotalPages(res.data.data.totalPages);
+        setCurrentPage(page);
+      }
+    } catch (err) {
+      console.error('Failed to fetch orders', err);
+    } finally {
+      setLoading(false);
+      setPageLoading(false);
+    }
+  };
+
   const loadData = async (page = 0) => {
     try {
       setLoading(true);
@@ -128,6 +171,21 @@ export default function SalesPage() {
       setLoading(false);
       setPageLoading(false);
     }
+  };
+
+  const handleApplyFilters = (e) => {
+    if (e) e.preventDefault();
+    fetchOrders(0);
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setFilterDistributorId('');
+    setFilterPaymentMethod('');
+    setFilterOrderStatus('');
+    setFilterStartDate('');
+    setFilterEndDate('');
+    fetchOrders(0, {});
   };
 
   useEffect(() => {
@@ -310,7 +368,7 @@ export default function SalesPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-white tracking-wide">Wholesale Orders & Invoices</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Manage and track distributor card bulk purchases</p>
+            <p className="text-xs text-slate-400 mt-0.5">Manage, search, and filter distributor wholesale card bulk purchases</p>
           </div>
 
           {isAdmin && (
@@ -323,6 +381,124 @@ export default function SalesPage() {
           )}
         </div>
 
+        {/* Search & Filter Bar */}
+        <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3">
+          <form onSubmit={handleApplyFilters} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3">
+            {/* Search Keyword */}
+            <div className="lg:col-span-5 relative">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search order #, distributor, serials, notes..."
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-8 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-teal-500 transition"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Distributor Filter */}
+            <div className="lg:col-span-3">
+              <select
+                value={filterDistributorId}
+                onChange={(e) => setFilterDistributorId(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500 transition"
+              >
+                <option value="">All Distributors</option>
+                {distributors.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.fullName} (@{d.username})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Payment Method Filter */}
+            <div className="lg:col-span-2">
+              <select
+                value={filterPaymentMethod}
+                onChange={(e) => setFilterPaymentMethod(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500 transition"
+              >
+                <option value="">All Payments</option>
+                <option value="BALANCE_CREDIT">Balance / Credit</option>
+                <option value="CASH">Cash</option>
+                <option value="BANK_TRANSFER">Bank Transfer</option>
+              </select>
+            </div>
+
+            {/* Filter Buttons */}
+            <div className="lg:col-span-2 flex items-center gap-2">
+              <button
+                type="submit"
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs shadow-md shadow-teal-500/20 transition"
+              >
+                <Search className="w-3.5 h-3.5" />
+                Filter
+              </button>
+              {(searchQuery || filterDistributorId || filterPaymentMethod || filterStartDate || filterEndDate) && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs border border-slate-700 transition"
+                  title="Reset all filters"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </form>
+
+          {/* Date Filter Bar */}
+          <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-800/60 text-xs text-slate-400">
+            <div className="flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-teal-400" />
+              <span>Date Filter:</span>
+            </div>
+            <input
+              type="date"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+              className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-teal-500"
+            />
+            <span>to</span>
+            <input
+              type="date"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+              className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-teal-500"
+            />
+            {(filterStartDate || filterEndDate) && (
+              <button
+                type="button"
+                onClick={() => { 
+                  setFilterStartDate(''); 
+                  setFilterEndDate(''); 
+                  fetchOrders(0, {
+                    search: searchQuery || undefined,
+                    distributorId: filterDistributorId || undefined,
+                    paymentMethod: filterPaymentMethod || undefined,
+                    status: filterOrderStatus || undefined,
+                    startDate: undefined,
+                    endDate: undefined,
+                  }); 
+                }}
+                className="text-xs text-teal-400 hover:underline"
+              >
+                Clear Dates
+              </button>
+            )}
+          </div>
+        </div>
+
         {loading ? (
           <div className="py-12 flex justify-center">
             <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
@@ -331,7 +507,7 @@ export default function SalesPage() {
           <div className="text-center py-12 border border-dashed border-slate-800 rounded-2xl">
             <ShoppingCart className="w-12 h-12 text-slate-600 mx-auto mb-3" />
             <p className="text-sm font-semibold text-slate-300">No Sales Orders Found</p>
-            <p className="text-xs text-slate-500 mt-1">Create your first wholesale order to dispatch cards</p>
+            <p className="text-xs text-slate-500 mt-1">Try adjusting your search keywords or active filters</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -396,14 +572,14 @@ export default function SalesPage() {
             <div className="flex gap-2">
               <button
                 disabled={currentPage === 0}
-                onClick={() => loadData(currentPage - 1)}
+                onClick={() => fetchOrders(currentPage - 1)}
                 className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-semibold transition"
               >
                 Previous
               </button>
               <button
                 disabled={currentPage + 1 >= totalPages}
-                onClick={() => loadData(currentPage + 1)}
+                onClick={() => fetchOrders(currentPage + 1)}
                 className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-semibold transition"
               >
                 Next

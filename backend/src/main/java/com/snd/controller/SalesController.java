@@ -36,11 +36,13 @@ public class SalesController {
     public ResponseEntity<ApiResponse<Page<SalesDto.SalesOrderResponse>>> getOrders(
             @RequestParam(required = false) Long distributorId,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String paymentMethod,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "15") int size) {
-        Page<SalesDto.SalesOrderResponse> orders = salesService.getOrders(distributorId, status, startDate, endDate, PageRequest.of(page, size));
+        Page<SalesDto.SalesOrderResponse> orders = salesService.getOrders(distributorId, status, paymentMethod, startDate, endDate, search, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.success(orders));
     }
 

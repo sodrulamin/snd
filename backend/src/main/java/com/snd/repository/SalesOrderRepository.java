@@ -20,15 +20,24 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
 
     @Query("SELECT o FROM SalesOrder o WHERE " +
            "(:distributorId IS NULL OR o.distributor.id = :distributorId) AND " +
-           "(:orderStatus IS NULL OR o.orderStatus = :orderStatus) AND " +
+           "(:orderStatus IS NULL OR :orderStatus = '' OR o.orderStatus = :orderStatus) AND " +
+           "(:paymentMethod IS NULL OR :paymentMethod = '' OR o.paymentMethod = :paymentMethod) AND " +
            "(:startDate IS NULL OR o.createdAt >= :startDate) AND " +
-           "(:endDate IS NULL OR o.createdAt <= :endDate) " +
+           "(:endDate IS NULL OR o.createdAt <= :endDate) AND " +
+           "(:search IS NULL OR :search = '' OR " +
+           " LOWER(o.orderNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           " LOWER(o.distributor.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           " LOWER(o.distributor.username) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           " LOWER(COALESCE(o.serialRangesSummary, '')) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           " LOWER(COALESCE(o.notes, '')) LIKE LOWER(CONCAT('%', :search, '%'))) " +
            "ORDER BY o.createdAt DESC")
     Page<SalesOrder> filterOrders(
             @Param("distributorId") Long distributorId,
             @Param("orderStatus") String orderStatus,
+            @Param("paymentMethod") String paymentMethod,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
+            @Param("search") String search,
             Pageable pageable
     );
 

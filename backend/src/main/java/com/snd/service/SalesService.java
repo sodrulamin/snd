@@ -245,8 +245,11 @@ public class SalesService {
         return mapToOrderResponse(order);
     }
 
-    public Page<SalesDto.SalesOrderResponse> getOrders(Long distributorId, String status, LocalDateTime start, LocalDateTime end, Pageable pageable) {
-        return orderRepository.filterOrders(distributorId, status, start, end, pageable).map(this::mapToOrderResponse);
+    public Page<SalesDto.SalesOrderResponse> getOrders(Long distributorId, String status, String paymentMethod, LocalDateTime start, LocalDateTime end, String search, Pageable pageable) {
+        String searchParam = (search != null && !search.isBlank()) ? search.trim() : null;
+        String statusParam = (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) ? status.trim() : null;
+        String paymentParam = (paymentMethod != null && !paymentMethod.isBlank() && !"ALL".equalsIgnoreCase(paymentMethod)) ? paymentMethod.trim() : null;
+        return orderRepository.filterOrders(distributorId, statusParam, paymentParam, start, end, searchParam, pageable).map(this::mapToOrderResponse);
     }
 
     public SalesDto.SalesOrderResponse getOrderById(Long id) {
