@@ -136,7 +136,14 @@ public class InventoryService {
     }
 
     public List<InventoryDto.BatchSummaryDto> getAllBatches() {
-        return batchRepository.findAllByOrderByGeneratedAtDesc().stream().map(this::mapToBatchSummary).collect(Collectors.toList());
+        return batchRepository.findByStatusOrderByGeneratedAtDesc("AVAILABLE").stream().map(this::mapToBatchSummary).collect(Collectors.toList());
+    }
+
+    public List<InventoryDto.BatchSummaryDto> getBatchesByStatus(String status) {
+        if ("ALL".equalsIgnoreCase(status)) {
+            return batchRepository.findAllByOrderByGeneratedAtDesc().stream().map(this::mapToBatchSummary).collect(Collectors.toList());
+        }
+        return batchRepository.findByStatusOrderByGeneratedAtDesc(status).stream().map(this::mapToBatchSummary).collect(Collectors.toList());
     }
 
     public InventoryDto.BatchSummaryDto getBatchById(Long id) {
@@ -188,7 +195,7 @@ public class InventoryService {
         long count = numEnd - numStart + 1;
         int quantity = (int) count;
 
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS"));
         String batchNumber = String.format("LOT-%s-%s", denomination.getFaceValue().intValue(), timestamp);
 
         BigDecimal totalPrice = denomination.getFaceValue().multiply(BigDecimal.valueOf(quantity));
@@ -211,7 +218,7 @@ public class InventoryService {
     }
 
     private InventoryDto.DenominationResponse mapToDenominationResponse(CardDenomination d) {
-        List<CardBatch> batches = batchRepository.findByDenominationId(d.getId());
+        List<CardBatch> batches = batchRepository.findByDenominationIdAndStatus(d.getId(), "AVAILABLE");
         long available = 0;
         for (CardBatch b : batches) {
             long batchCount = 0;
@@ -239,6 +246,12 @@ public class InventoryService {
             available = rechargeCardRepository.countByDenominationIdAndStatus(d.getId(), "IN_STOCK");
         }
         long sold = rechargeCardRepository.countByDenominationIdAndStatus(d.getId(), "SOLD");
+        if (sold == 0) {
+            List<CardBatch> soldBatches = batchRepository.findByDenominationIdAndStatus(d.getId(), "SOLD");
+            for (CardBatch b : soldBatches) {
+                sold += (b.getQuantity() != null ? b.getQuantity() : 0);
+            }
+        }
         BigDecimal retail = d.getRetailPrice() != null ? d.getRetailPrice() : d.getFaceValue();
         BigDecimal wholesale = d.getWholesalePrice() != null ? d.getWholesalePrice() : retail;
 
@@ -262,7 +275,7 @@ public class InventoryService {
     }
 
     private InventoryDto.BatchSummaryDto mapToBatchSummary(CardBatch b) {
-        long inStock = 0;
+        long count = 0;
         if (StringUtils.hasText(b.getStartSerialNumber()) && StringUtils.hasText(b.getEndSerialNumber())) {
             try {
                 Pattern pattern = Pattern.compile("^(.*?)(\\d+)$");
@@ -272,20 +285,22 @@ public class InventoryService {
                     long start = Long.parseLong(mStart.group(2));
                     long end = Long.parseLong(mEnd.group(2));
                     if (end >= start) {
-                        inStock = end - start + 1;
+                        count = end - start + 1;
                     }
                 }
             } catch (Exception e) {
                 log.warn("Could not calculate inStock from serial range for batch {}: {}", b.getBatchNumber(), e.getMessage());
             }
         }
-        if (inStock == 0 && b.getQuantity() != null) {
-            inStock = b.getQuantity();
+        if (count == 0 && b.getQuantity() != null) {
+            count = b.getQuantity();
         }
 
-        log.info("Batch id: {} number: {} in stock: {}", b.getId(), b.getBatchNumber(), inStock);
+        long inStock = "SOLD".equalsIgnoreCase(b.getStatus()) ? 0 : count;
+        long sold = "SOLD".equalsIgnoreCase(b.getStatus()) ? count : 0;
 
-        long sold = 0;
+        log.info("Batch id: {} number: {} status: {} in stock: {} sold: {}", b.getId(), b.getBatchNumber(), b.getStatus(), inStock, sold);
+
         BigDecimal retail = b.getDenomination().getRetailPrice() != null ? b.getDenomination().getRetailPrice() : b.getDenomination().getFaceValue();
         BigDecimal wholesale = b.getDenomination().getWholesalePrice() != null ? b.getDenomination().getWholesalePrice() : retail;
 
@@ -299,7 +314,7 @@ public class InventoryService {
             .retailPrice(retail)
             .wholesalePrice(wholesale)
             .currency(b.getDenomination().getCurrency())
-            .quantity((int) inStock)
+            .quantity((int) count)
             .startSerialNumber(b.getStartSerialNumber())
             .endSerialNumber(b.getEndSerialNumber())
             .inStockCount((int) inStock)
@@ -346,7 +361,7 @@ public class InventoryService {
                 .build();
         }
 
-        List<CardBatch> batches = batchRepository.findByDenominationId(denominationId);
+        List<CardBatch> batches = batchRepository.findByDenominationIdAndStatus(denominationId, "AVAILABLE");
         if (!batches.isEmpty()) {
             CardBatch b = batches.get(0);
             long count = b.getQuantity() != null ? b.getQuantity() : 0;
@@ -387,6 +402,10 @@ public class InventoryService {
     public void deleteBatch(Long id) {
         CardBatch batch = batchRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Inventory lot not found: " + id));
+
+        if ("SOLD".equalsIgnoreCase(batch.getStatus())) {
+            throw new IllegalStateException("Cannot delete inventory lot '" + batch.getBatchNumber() + "' because it has already been sold.");
+        }
 
         long soldCount = rechargeCardRepository.countByBatchIdAndStatus(id, "SOLD");
         long allocatedCount = rechargeCardRepository.countByBatchIdAndStatus(id, "ALLOCATED");

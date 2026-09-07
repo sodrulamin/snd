@@ -77,4 +77,15 @@ public class SalesOrder {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<SalesOrderItem> items = new ArrayList<>();
+
+    public void setItems(List<SalesOrderItem> items) {
+        if (this.items == null) {
+            this.items = new ArrayList<>();
+        } else {
+            this.items.clear();
+        }
+        if (items != null) {
+            this.items.addAll(items);
+        }
+    }
 }

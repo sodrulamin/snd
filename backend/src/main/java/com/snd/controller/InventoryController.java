@@ -53,8 +53,9 @@ public class InventoryController {
     }
 
     @GetMapping("/batches")
-    public ResponseEntity<ApiResponse<List<InventoryDto.BatchSummaryDto>>> getBatches() {
-        return ResponseEntity.ok(ApiResponse.success(inventoryService.getAllBatches()));
+    public ResponseEntity<ApiResponse<List<InventoryDto.BatchSummaryDto>>> getBatches(
+            @RequestParam(required = false, defaultValue = "AVAILABLE") String status) {
+        return ResponseEntity.ok(ApiResponse.success(inventoryService.getBatchesByStatus(status)));
     }
 
     @GetMapping("/batches/{id}")

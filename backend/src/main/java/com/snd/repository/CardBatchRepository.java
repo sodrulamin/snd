@@ -10,7 +10,10 @@ import java.util.Optional;
 public interface CardBatchRepository extends JpaRepository<CardBatch, Long> {
     Optional<CardBatch> findByBatchNumber(String batchNumber);
     List<CardBatch> findByDenominationId(Long denominationId);
+    List<CardBatch> findByDenominationIdAndStatus(Long denominationId, String status);
     long countByDenominationId(Long denominationId);
+    long countByDenominationIdAndStatus(Long denominationId, String status);
     List<CardBatch> findByStatus(String status);
+    List<CardBatch> findByStatusOrderByGeneratedAtDesc(String status);
     List<CardBatch> findAllByOrderByGeneratedAtDesc();
 }

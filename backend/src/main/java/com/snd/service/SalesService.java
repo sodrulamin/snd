@@ -53,7 +53,7 @@ public class SalesService {
                 ? request.getCustomDiscountPercentage()
                 : distributor.getDiscountRate();
 
-        String orderNumber = "ORD-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        String orderNumber = "ORD-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS")) + "-" + (int)(100 + Math.random() * 900);
 
         int totalCardsCount = 0;
         BigDecimal totalFaceValue = BigDecimal.ZERO;
@@ -82,100 +82,67 @@ public class SalesService {
             CardDenomination denomination = denominationRepository.findById(itemReq.getDenominationId())
                     .orElseThrow(() -> new RuntimeException("Card product not found: " + itemReq.getDenominationId()));
 
-            List<RechargeCard> availableCards = new ArrayList<>();
             String startSerial = itemReq.getStartSerialNumber() != null ? itemReq.getStartSerialNumber().trim() : null;
             String endSerial = itemReq.getEndSerialNumber() != null ? itemReq.getEndSerialNumber().trim() : null;
-            int itemQty;
 
-            if (startSerial != null && !startSerial.isEmpty() && endSerial != null && !endSerial.isEmpty()) {
-                Pattern pattern = Pattern.compile("^(.*?)(\\d+)$");
-                Matcher mStart = pattern.matcher(startSerial);
-                Matcher mEnd = pattern.matcher(endSerial);
-
-                if (!mStart.matches() || !mEnd.matches()) {
-                    throw new IllegalArgumentException("Start and End serial numbers must end with numeric digits (e.g. 100001 or SN-100-0001)");
-                }
-
-                String prefixStart = mStart.group(1);
-                String numStartStr = mStart.group(2);
-                String prefixEnd = mEnd.group(1);
-                String numEndStr = mEnd.group(2);
-
-                if (!prefixStart.equals(prefixEnd)) {
-                    throw new IllegalArgumentException("Start and End serial numbers must have the same prefix (found '" + prefixStart + "' and '" + prefixEnd + "')");
-                }
-
-                long numStart = Long.parseLong(numStartStr);
-                long numEnd = Long.parseLong(numEndStr);
-
-                if (numEnd < numStart) {
-                    throw new IllegalArgumentException("End serial number (" + endSerial + ") cannot be less than start serial number (" + startSerial + ")");
-                }
-
-                itemQty = (int) (numEnd - numStart + 1);
-                int padLength = Math.max(numStartStr.length(), numEndStr.length());
-
-                for (long n = numStart; n <= numEnd; n++) {
-                    String sNum = prefixStart + String.format("%0" + padLength + "d", n);
-                    RechargeCard card = rechargeCardRepository.findBySerialNumber(sNum).orElse(null);
-                    if (card == null) {
-                        CardBatch matchingBatch = null;
-                        List<CardBatch> batches = batchRepository.findByDenominationId(denomination.getId());
-                        for (CardBatch b : batches) {
-                            if (isSerialInBatch(sNum, b)) {
-                                matchingBatch = b;
-                                break;
-                            }
-                        }
-                        if (matchingBatch == null) {
-                            throw new IllegalArgumentException("Card with serial number '" + sNum + "' not found in inventory!");
-                        }
-                        card = RechargeCard.builder()
-                                .serialNumber(sNum)
-                                .denomination(denomination)
-                                .batch(matchingBatch)
-                                .status("IN_STOCK")
-                                .expiryDate(denomination.getAvailableUntil() != null ? denomination.getAvailableUntil() : LocalDate.now().plusYears(1))
-                                .build();
-                        card = rechargeCardRepository.save(card);
-                    }
-
-                    if (!card.getDenomination().getId().equals(denomination.getId())) {
-                        throw new IllegalArgumentException("Card '" + sNum + "' belongs to [" + card.getDenomination().getCode() + "] " + card.getDenomination().getName() + ", not " + denomination.getName());
-                    }
-
-                    if (!"IN_STOCK".equalsIgnoreCase(card.getStatus())) {
-                        throw new IllegalStateException("Card '" + sNum + "' is already " + card.getStatus() + " and cannot be sold!");
-                    }
-
-                    if (itemReq.getBatchId() != null && !card.getBatch().getId().equals(itemReq.getBatchId())) {
-                        throw new IllegalArgumentException("Card '" + sNum + "' belongs to lot " + card.getBatch().getBatchNumber() + ", not the selected lot");
-                    }
-
-                    availableCards.add(card);
-                }
-            } else if (itemReq.getQuantity() != null && itemReq.getQuantity() > 0) {
-                itemQty = itemReq.getQuantity();
-                if (itemReq.getBatchId() != null) {
-                    availableCards = rechargeCardRepository.findAvailableCardsByBatch(
-                            itemReq.getBatchId(),
-                            PageRequest.of(0, itemQty)
-                    );
-                } else {
-                    availableCards = rechargeCardRepository.findAvailableCardsByDenomination(
-                            denomination.getId(),
-                            PageRequest.of(0, itemQty)
-                    );
-                }
-
-                if (availableCards.size() < itemQty) {
-                    throw new IllegalStateException("Insufficient in-stock cards for product: " + denomination.getName() +
-                            ". Requested: " + itemQty + ", Available: " + availableCards.size());
-                }
-                startSerial = availableCards.get(0).getSerialNumber();
-                endSerial = availableCards.get(availableCards.size() - 1).getSerialNumber();
-            } else {
+            if (!StringUtils.hasText(startSerial) || !StringUtils.hasText(endSerial)) {
                 throw new IllegalArgumentException("Start and End serial numbers are required for each card product in the order");
+            }
+
+            Pattern pattern = Pattern.compile("^(.*?)(\\d+)$");
+            Matcher mStart = pattern.matcher(startSerial);
+            Matcher mEnd = pattern.matcher(endSerial);
+
+            if (!mStart.matches() || !mEnd.matches()) {
+                throw new IllegalArgumentException("Start and End serial numbers must end with numeric digits (e.g. 100001 or SN-100-0001)");
+            }
+
+            String prefixStart = mStart.group(1);
+            String numStartStr = mStart.group(2);
+            String prefixEnd = mEnd.group(1);
+            String numEndStr = mEnd.group(2);
+
+            if (!prefixStart.equals(prefixEnd)) {
+                throw new IllegalArgumentException("Start and End serial numbers must have the same prefix (found '" + prefixStart + "' and '" + prefixEnd + "')");
+            }
+
+            long numStart = Long.parseLong(numStartStr);
+            long numEnd = Long.parseLong(numEndStr);
+
+            if (numEnd < numStart) {
+                throw new IllegalArgumentException("End serial number (" + endSerial + ") cannot be less than start serial number (" + startSerial + ")");
+            }
+
+            int itemQty = (int) (numEnd - numStart + 1);
+
+            // Find matching available batch encompassing [numStart, numEnd]
+            List<CardBatch> availableBatches = batchRepository.findByDenominationIdAndStatus(denomination.getId(), "AVAILABLE");
+            CardBatch matchingBatch = null;
+            long bStartNum = 0, bEndNum = 0;
+            int bPadLen = Math.max(numStartStr.length(), numEndStr.length());
+            String bPrefix = prefixStart;
+
+            for (CardBatch b : availableBatches) {
+                if (StringUtils.hasText(b.getStartSerialNumber()) && StringUtils.hasText(b.getEndSerialNumber())) {
+                    Matcher mbStart = pattern.matcher(b.getStartSerialNumber().trim());
+                    Matcher mbEnd = pattern.matcher(b.getEndSerialNumber().trim());
+                    if (mbStart.matches() && mbEnd.matches() && mbStart.group(1).equals(mbEnd.group(1)) && mbStart.group(1).equals(prefixStart)) {
+                        long bs = Long.parseLong(mbStart.group(2));
+                        long be = Long.parseLong(mbEnd.group(2));
+                        if (numStart >= bs && numEnd <= be) {
+                            matchingBatch = b;
+                            bStartNum = bs;
+                            bEndNum = be;
+                            bPadLen = Math.max(mbStart.group(2).length(), mbEnd.group(2).length());
+                            bPrefix = mbStart.group(1);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (matchingBatch == null) {
+                throw new IllegalArgumentException("No available inventory lot found containing serial range '" + startSerial + "' ~ '" + endSerial + "' for product " + denomination.getName());
             }
 
             BigDecimal unitWholesalePrice = denomination.getWholesalePrice() != null
@@ -189,17 +156,110 @@ public class SalesService {
             totalCardsCount += itemQty;
             totalFaceValue = totalFaceValue.add(subtotalFace);
 
-            String serialRange = startSerial.equals(endSerial) ? startSerial : (startSerial + " ~ " + endSerial);
-            CardBatch itemBatch = availableCards.get(0).getBatch();
+            // 1. Keep selected serial range into matchingBatch and mark as SOLD
+            matchingBatch.setStartSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", numStart));
+            matchingBatch.setEndSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", numEnd));
+            matchingBatch.setQuantity(itemQty);
+            matchingBatch.setTotalFaceValue(unitWholesalePrice.multiply(BigDecimal.valueOf(itemQty)));
+            matchingBatch.setStatus("SOLD");
+            CardBatch soldBatch = batchRepository.save(matchingBatch);
 
+            // 2. Breakdown and recreate CardBatch for remaining available ranges keeping the same batchNumber
+            // Case A: Sold start to middle -> remaining range [numEnd + 1, bEndNum]
+            if (numStart == bStartNum && numEnd < bEndNum) {
+                int remQty = (int) (bEndNum - (numEnd + 1) + 1);
+                CardBatch afterBatch = CardBatch.builder()
+                        .batchNumber(matchingBatch.getBatchNumber())
+                        .denomination(denomination)
+                        .startSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", numEnd + 1))
+                        .endSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", bEndNum))
+                        .quantity(remQty)
+                        .totalFaceValue(unitWholesalePrice.multiply(BigDecimal.valueOf(remQty)))
+                        .status("AVAILABLE")
+                        .createdBy(createdByUsername)
+                        .notes(matchingBatch.getNotes())
+                        .build();
+                batchRepository.save(afterBatch);
+            }
+            // Case B: Sold middle to end -> remaining range [bStartNum, numStart - 1]
+            else if (numStart > bStartNum && numEnd == bEndNum) {
+                int remQty = (int) ((numStart - 1) - bStartNum + 1);
+                CardBatch beforeBatch = CardBatch.builder()
+                        .batchNumber(matchingBatch.getBatchNumber())
+                        .denomination(denomination)
+                        .startSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", bStartNum))
+                        .endSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", numStart - 1))
+                        .quantity(remQty)
+                        .totalFaceValue(unitWholesalePrice.multiply(BigDecimal.valueOf(remQty)))
+                        .status("AVAILABLE")
+                        .createdBy(createdByUsername)
+                        .notes(matchingBatch.getNotes())
+                        .build();
+                batchRepository.save(beforeBatch);
+            }
+            // Case C: Sold middle to middle -> remaining range 1 [bStartNum, numStart - 1] AND range 2 [numEnd + 1, bEndNum]
+            else if (numStart > bStartNum && numEnd < bEndNum) {
+                int remQty1 = (int) ((numStart - 1) - bStartNum + 1);
+                CardBatch beforeBatch = CardBatch.builder()
+                        .batchNumber(matchingBatch.getBatchNumber())
+                        .denomination(denomination)
+                        .startSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", bStartNum))
+                        .endSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", numStart - 1))
+                        .quantity(remQty1)
+                        .totalFaceValue(unitWholesalePrice.multiply(BigDecimal.valueOf(remQty1)))
+                        .status("AVAILABLE")
+                        .createdBy(createdByUsername)
+                        .notes(matchingBatch.getNotes())
+                        .build();
+                batchRepository.save(beforeBatch);
+
+                int remQty2 = (int) (bEndNum - (numEnd + 1) + 1);
+                CardBatch afterBatch = CardBatch.builder()
+                        .batchNumber(matchingBatch.getBatchNumber())
+                        .denomination(denomination)
+                        .startSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", numEnd + 1))
+                        .endSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", bEndNum))
+                        .quantity(remQty2)
+                        .totalFaceValue(unitWholesalePrice.multiply(BigDecimal.valueOf(remQty2)))
+                        .status("AVAILABLE")
+                        .createdBy(createdByUsername)
+                        .notes(matchingBatch.getNotes())
+                        .build();
+                batchRepository.save(afterBatch);
+            }
+
+            // Update individual RechargeCard records if present
+            LocalDateTime now = LocalDateTime.now();
+            for (long n = numStart; n <= numEnd; n++) {
+                String sNum = bPrefix + String.format("%0" + bPadLen + "d", n);
+                RechargeCard card = rechargeCardRepository.findBySerialNumber(sNum).orElse(null);
+                if (card == null) {
+                    card = RechargeCard.builder()
+                            .serialNumber(sNum)
+                            .denomination(denomination)
+                            .batch(soldBatch)
+                            .status("SOLD")
+                            .distributor(distributor)
+                            .order(order)
+                            .soldAt(now)
+                            .expiryDate(denomination.getAvailableUntil() != null ? denomination.getAvailableUntil() : LocalDate.now().plusYears(1))
+                            .build();
+                } else {
+                    card.setBatch(soldBatch);
+                    card.setStatus("SOLD");
+                    card.setDistributor(distributor);
+                    card.setOrder(order);
+                    card.setSoldAt(now);
+                }
+                cardsToAllocate.add(card);
+            }
+
+            // Create SalesOrderItem pointing directly to sold CardBatch
             SalesOrderItem orderItem = SalesOrderItem.builder()
                     .order(order)
                     .denomination(denomination)
-                    .batch(itemBatch)
+                    .batch(soldBatch)
                     .quantity(itemQty)
-                    .startSerialNumber(startSerial)
-                    .endSerialNumber(endSerial)
-//                    .serialRange(serialRange)
                     .unitFaceValue(unitWholesalePrice)
                     .subtotalFaceValue(subtotalFace)
                     .itemDiscountPercent(itemDiscount)
@@ -207,16 +267,7 @@ public class SalesService {
                     .build();
 
             orderItems.add(orderItem);
-            rangeSummaries.add(denomination.getName() + " (" + itemQty + " cards): " + serialRange);
-
-            LocalDateTime now = LocalDateTime.now();
-            for (RechargeCard card : availableCards) {
-                card.setStatus("SOLD");
-                card.setDistributor(distributor);
-                card.setOrder(order);
-                card.setSoldAt(now);
-                cardsToAllocate.add(card);
-            }
+            rangeSummaries.add(denomination.getName() + " (" + itemQty + " cards): " + soldBatch.getStartSerialNumber() + " ~ " + soldBatch.getEndSerialNumber());
         }
 
         rechargeCardRepository.saveAll(cardsToAllocate);
@@ -230,7 +281,12 @@ public class SalesService {
         order.setDiscountAmount(totalDiscountAmount);
         order.setFinalAmount(finalAmount);
         order.setSerialRangesSummary(String.join(" | ", rangeSummaries));
-        order.setItems(orderItems);
+        if (order.getItems() == null) {
+            order.setItems(new ArrayList<>());
+        } else {
+            order.getItems().clear();
+        }
+        order.getItems().addAll(orderItems);
         order = orderRepository.save(order);
 
         if ("BALANCE_CREDIT".equalsIgnoreCase(request.getPaymentMethod())) {
@@ -251,21 +307,6 @@ public class SalesService {
                     .build();
             transactionRepository.save(txn);
         }
-
-        cardsToAllocate.stream()
-                .map(c -> c.getBatch().getId())
-                .distinct()
-                .forEach(batchId -> {
-                    long remaining = rechargeCardRepository.countByBatchIdAndStatus(batchId, "IN_STOCK");
-                    batchRepository.findById(batchId).ifPresent(b -> {
-                        if (remaining == 0) {
-                            b.setStatus("EXHAUSTED");
-                        } else {
-                            b.setStatus("PARTIALLY_SOLD");
-                        }
-                        batchRepository.save(b);
-                    });
-                });
 
         return mapToOrderResponse(order);
     }
@@ -310,9 +351,8 @@ public class SalesService {
                 .unitFaceValue(i.getUnitFaceValue())
                 .batchId(i.getBatch() != null ? i.getBatch().getId() : null)
                 .batchNumber(i.getBatch() != null ? i.getBatch().getBatchNumber() : null)
-                .startSerialNumber(i.getStartSerialNumber())
-                .endSerialNumber(i.getEndSerialNumber())
-//                .serialRange(i.getSerialRange())
+                .startSerialNumber(i.getBatch() != null ? i.getBatch().getStartSerialNumber() : null)
+                .endSerialNumber(i.getBatch() != null ? i.getBatch().getEndSerialNumber() : null)
                 .quantity(i.getQuantity())
                 .subtotalFaceValue(i.getSubtotalFaceValue())
                 .itemDiscountPercent(i.getItemDiscountPercent())

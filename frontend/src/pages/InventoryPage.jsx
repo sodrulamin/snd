@@ -195,9 +195,11 @@ export default function InventoryPage() {
     }
   };
 
+  const [searchQuery, setSearchQuery] = useState('');
+
   const handleExportCsv = () => {
-    if (!batches || batches.length === 0) {
-      alert('No inventory batch data available to export.');
+    if (!availableBatches || availableBatches.length === 0) {
+      alert('No available inventory lot data to export.');
       return;
     }
 
@@ -208,22 +210,22 @@ export default function InventoryPage() {
       'Card Code',
       'Start Serial',
       'End Serial',
-      'Quantity',
-      'Wholesale',
-      'Retail',
+      'Available Quantity',
+      'Wholesale Price',
+      'Retail Price',
       'Added Time'
     ];
 
-    const rows = batches.map((b, idx) => [
+    const rows = availableBatches.map((b, idx) => [
       idx + 1,
       `"${b.batchNumber || ''}"`,
       `"${b.denominationName || ''}"`,
       `"${b.denominationCode || 'IPTSP'}"`,
       `"${b.startSerialNumber || ''}"`,
       `"${b.endSerialNumber || ''}"`,
-      b.quantity || 0,
+      b.inStockCount || b.quantity || 0,
       Number(b.wholesalePrice || b.faceValue || 0).toFixed(2),
-      Number(b.totalFaceValue || 0).toFixed(2),
+      Number(b.faceValue || b.retailPrice || 0).toFixed(2),
       `"${b.generatedAt ? new Date(b.generatedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : ''}"`
     ]);
 
@@ -233,26 +235,49 @@ export default function InventoryPage() {
     const link = document.createElement('a');
     link.href = url;
     const today = new Date().toISOString().split('T')[0];
-    link.setAttribute('download', `IPTSP_Inventory_Batches_${today}.csv`);
+    link.setAttribute('download', `IPTSP_Available_Inventory_${today}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
-  const totalBatches = batches.length;
-  const inStockCards = batches.reduce((acc, b) => acc + (b.inStockCount || 0), 0);
-  const totalSold = batches.reduce((acc, b) => acc + (b.soldCount || 0), 0);
-  const totalStockValue = batches.reduce((acc, b) => acc + (Number(b.faceValue || 0) * (b.inStockCount || 0)), 0);
+  // Filter out sold / exhausted items — show strictly available inventory
+  const availableBatches = batches.filter(
+    (b) => b.status === 'AVAILABLE' || (!['SOLD', 'EXHAUSTED'].includes(b.status) && (b.inStockCount ?? b.quantity ?? 0) > 0)
+  );
+
+  const filteredBatches = availableBatches.filter((b) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (b.batchNumber && b.batchNumber.toLowerCase().includes(q)) ||
+      (b.denominationName && b.denominationName.toLowerCase().includes(q)) ||
+      (b.denominationCode && b.denominationCode.toLowerCase().includes(q)) ||
+      (b.startSerialNumber && b.startSerialNumber.toLowerCase().includes(q)) ||
+      (b.endSerialNumber && b.endSerialNumber.toLowerCase().includes(q))
+    );
+  });
+
+  const totalBatches = availableBatches.length;
+  const inStockCards = availableBatches.reduce((acc, b) => acc + (b.inStockCount || b.quantity || 0), 0);
+  const totalWholesaleValue = availableBatches.reduce(
+    (acc, b) => acc + (Number(b.wholesalePrice || b.faceValue || 0) * (b.inStockCount || b.quantity || 0)), 
+    0
+  );
+  const totalRetailValue = availableBatches.reduce(
+    (acc, b) => acc + (Number(b.faceValue || b.retailPrice || 0) * (b.inStockCount || b.quantity || 0)), 
+    0
+  );
 
   return (
     <div className="space-y-6">
       {/* Inventory KPI Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Inventory Entries"
+          title="Available Lots"
           value={totalBatches.toString()}
-          subtext="Total stock additions"
+          subtext="Active in-stock lots"
           icon={Layers}
           color="blue"
         />
@@ -264,17 +289,17 @@ export default function InventoryPage() {
           color="emerald"
         />
         <StatCard
-          title="Cards Distributed"
-          value={totalSold.toLocaleString()}
-          subtext="Allocated to partner orders"
-          icon={CheckCircle2}
+          title="Wholesale Inventory Value"
+          value={`৳${totalWholesaleValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          subtext="Cost basis of in-stock cards"
+          icon={ShieldCheck}
           color="teal"
         />
         <StatCard
-          title="In-Stock Face Value"
-          value={`৳${totalStockValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          subtext="Available inventory value"
-          icon={ShieldCheck}
+          title="Retail (MRP) Value"
+          value={`৳${totalRetailValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          subtext="Total face value in stock"
+          icon={CheckCircle2}
           color="amber"
         />
       </div>
@@ -296,7 +321,7 @@ export default function InventoryPage() {
             <button
               onClick={handleExportCsv}
               className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-teal-300 hover:text-white border border-slate-700/80 hover:border-teal-500/30 transition shadow-sm"
-              title="Download all inventory batch details as CSV"
+              title="Download available inventory batch details as CSV"
             >
               <Download className="w-4 h-4 text-teal-400" />
               <span>Download CSV</span>
@@ -312,6 +337,27 @@ export default function InventoryPage() {
           </div>
         </div>
 
+        {/* Search filter toolbar */}
+        <div className="p-3 bg-slate-950/60 border-b border-slate-800 flex items-center gap-3">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Search available inventory by Lot #, Card Name, Code, or Serial Number..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+            />
+          </div>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs font-semibold"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
@@ -321,7 +367,7 @@ export default function InventoryPage() {
                 <th className="p-3.5">Card Product & Code</th>
                 <th className="p-3.5">Start Serial</th>
                 <th className="p-3.5">End Serial</th>
-                <th className="p-3.5 text-center">Quantity</th>
+                <th className="p-3.5 text-center">Available Quantity</th>
                 <th className="p-3.5 text-right">Wholesale</th>
                 <th className="p-3.5 text-right">Retail</th>
                 <th className="p-3.5 text-center">Added Time</th>
@@ -329,7 +375,7 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {batches.map((b, idx) => (
+              {filteredBatches.map((b, idx) => (
                 <tr key={b.id} className="hover:bg-slate-800/30 transition">
                   <td className="p-3.5 text-center font-mono text-slate-400">{idx + 1}</td>
                   <td className="p-3.5 font-mono font-semibold text-white">
@@ -348,12 +394,16 @@ export default function InventoryPage() {
                   <td className="p-3.5 font-mono text-slate-300 font-medium">
                     {b.endSerialNumber || 'N/A'}
                   </td>
-                  <td className="p-3.5 text-center font-bold text-slate-300">{b.quantity}</td>
+                  <td className="p-3.5 text-center font-bold text-teal-300">
+                    <span className="px-2 py-0.5 rounded bg-teal-500/10 border border-teal-500/20">
+                      {b.inStockCount || b.quantity}
+                    </span>
+                  </td>
                   <td className="p-3.5 text-right font-mono font-bold text-teal-400">
                     ৳{Number(b.wholesalePrice || b.faceValue).toFixed(2)}
                   </td>
                   <td className="p-3.5 text-right font-mono font-semibold text-slate-200">
-                    ৳{Number(b.totalFaceValue).toFixed(2)}
+                    ৳{(Number(b.faceValue || b.retailPrice || 0) * (b.inStockCount || b.quantity || 1)).toFixed(2)}
                   </td>
                   <td className="p-3.5 text-center text-slate-300 font-mono text-[11px]">
                     {b.generatedAt ? new Date(b.generatedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}
@@ -380,10 +430,10 @@ export default function InventoryPage() {
                   </td>
                 </tr>
               ))}
-              {batches.length === 0 && !loading && (
+              {filteredBatches.length === 0 && !loading && (
                 <tr>
                   <td colSpan="10" className="p-8 text-center text-slate-500">
-                    No card inventory found. Click "Add Inventory" to add card stock.
+                    {searchQuery ? 'No available inventory lots match your search query.' : 'No available card inventory found. Click "Add Inventory" to add card stock.'}
                   </td>
                 </tr>
               )}
