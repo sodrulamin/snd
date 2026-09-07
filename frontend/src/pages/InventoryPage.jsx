@@ -277,7 +277,7 @@ export default function InventoryPage() {
                 <th className="p-3.5 text-center">Sold</th>
                 <th className="p-3.5 text-right">Retail Value</th>
                 <th className="p-3.5 text-center">Status</th>
-                <th className="p-3.5 text-center">Available Until</th>
+                <th className="p-3.5 text-center">Added Time</th>
                 <th className="p-3.5 text-center">Actions</th>
               </tr>
             </thead>
@@ -315,7 +315,7 @@ export default function InventoryPage() {
                     </span>
                   </td>
                   <td className="p-3.5 text-center text-slate-300 font-mono text-[11px]">
-                    {b.expiryDate}
+                    {b.generatedAt ? new Date(b.generatedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}
                   </td>
                   <td className="p-3.5 text-center">
                     <div className="flex items-center justify-center gap-1.5">

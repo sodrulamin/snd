@@ -45,9 +45,6 @@ public class CardBatch {
     @Column(name = "generated_at", updatable = false)
     private LocalDateTime generatedAt;
 
-    @Column(name = "expiry_date", nullable = false)
-    private LocalDate expiryDate;
-
     @Column(columnDefinition = "TEXT")
     private String notes;
 

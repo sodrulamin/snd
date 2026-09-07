@@ -5,9 +5,9 @@ spring:
   application:
     name: voip-snd-backend
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/snd_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8}
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:rootpassword}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:5624/snd_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8}
+    username: ${SPRING_DATASOURCE_USERNAME:snd_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:4>2k"8OdhP6R}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
