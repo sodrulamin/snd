@@ -108,4 +108,11 @@ public class InventoryController {
             @PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(inventoryService.getAvailableSerialRange(id)));
     }
+
+    @DeleteMapping("/batches/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteBatch(@PathVariable Long id) {
+        inventoryService.deleteBatch(id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Inventory lot and associated cards deleted successfully"));
+    }
 }

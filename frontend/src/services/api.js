@@ -47,6 +47,7 @@ export const inventoryService = {
   createDenomination: (data) => api.post('/inventory/denominations', data),
   updateDenomination: (id, data) => api.put(`/inventory/denominations/${id}`, data),
   deleteDenomination: (id) => api.delete(`/inventory/denominations/${id}`),
+  deleteBatch: (id) => api.delete(`/inventory/batches/${id}`),
   getBatches: () => api.get('/inventory/batches'),
   getAllBatches: () => api.get('/inventory/batches'),
   getBatchById: (id) => api.get(`/inventory/batches/${id}`),

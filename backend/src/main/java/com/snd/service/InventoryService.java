@@ -429,4 +429,20 @@ public class InventoryService {
                 .batchNumber(firstCard.getBatch() != null ? firstCard.getBatch().getBatchNumber() : null)
                 .build();
     }
+
+    @Transactional
+    public void deleteBatch(Long id) {
+        CardBatch batch = batchRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Inventory lot not found: " + id));
+
+        long soldCount = rechargeCardRepository.countByBatchIdAndStatus(id, "SOLD");
+        long allocatedCount = rechargeCardRepository.countByBatchIdAndStatus(id, "ALLOCATED");
+        if (soldCount > 0 || allocatedCount > 0) {
+            throw new IllegalStateException("Cannot delete inventory lot '" + batch.getBatchNumber() + "' because " + (soldCount + allocatedCount) + " card(s) have already been sold or allocated to sales orders.");
+        }
+
+        List<RechargeCard> cards = rechargeCardRepository.findByBatchId(id);
+        rechargeCardRepository.deleteAll(cards);
+        batchRepository.delete(batch);
+    }
 }

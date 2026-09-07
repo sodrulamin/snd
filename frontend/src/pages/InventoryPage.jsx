@@ -12,6 +12,7 @@ import {
   CheckCircle2, 
   Clock, 
   Plus,
+  Trash2,
   ArrowRight,
   Info
 } from 'lucide-react';
@@ -157,6 +158,27 @@ export default function InventoryPage() {
       setFormError(err.response?.data?.message || 'Failed to add inventory.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteBatch = async (batch) => {
+    const isSoldOrAllocated = (batch.soldCount || 0) > 0;
+    if (isSoldOrAllocated) {
+      alert(`Cannot delete inventory lot "${batch.batchNumber}" because ${batch.soldCount} card(s) have already been sold or allocated to orders.`);
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete inventory lot "${batch.batchNumber}" (${batch.startSerialNumber} ~ ${batch.endSerialNumber})?\n\nThis will permanently delete all ${batch.quantity} cards from inventory.`)) {
+      return;
+    }
+
+    try {
+      const res = await inventoryService.deleteBatch(batch.id);
+      if (res.data?.success) {
+        loadData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete inventory lot.');
     }
   };
 
@@ -310,6 +332,15 @@ export default function InventoryPage() {
                       >
                         <Download className="w-4 h-4" />
                       </a>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleDeleteBatch(b)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/30 transition"
+                          title="Delete Inventory Lot"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
