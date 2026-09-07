@@ -343,12 +343,12 @@ export default function CardDetailsPage() {
                     </td>
                     <td className="p-3.5 font-mono">
                       <span className="px-2 py-0.5 rounded bg-teal-500/15 text-teal-300 font-black text-[11px] border border-teal-500/30">
-                        {c.code || `VOIP-${retail}`}
+                        {c.code || `IPTSP-${retail}`}
                       </span>
                     </td>
                     <td className="p-3.5">
                       <p className="font-bold text-white text-sm">{c.name}</p>
-                      <p className="text-[11px] text-slate-400 line-clamp-1">{c.description || 'VoIP Recharge Card'}</p>
+                      <p className="text-[11px] text-slate-400 line-clamp-1">{c.description || 'IPTSP Recharge Card'}</p>
                     </td>
                     <td className="p-3.5 text-right font-mono font-bold text-white text-sm">
                       ৳{retail.toFixed(2)}
@@ -454,7 +454,7 @@ export default function CardDetailsPage() {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. VOIP-100"
+                    placeholder="e.g. IPTSP-100"
                     value={form.code}
                     onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500 font-mono font-bold"
@@ -467,7 +467,7 @@ export default function CardDetailsPage() {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. VoIP Standard ৳100"
+                    placeholder="e.g. IPTSP Standard ৳100"
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500"
@@ -542,7 +542,7 @@ export default function CardDetailsPage() {
                 <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">Description / Plan Details</label>
                 <textarea
                   rows="2"
-                  placeholder="e.g. 500 VoIP international minutes voucher"
+                  placeholder="e.g. 500 IPTSP international minutes voucher"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"

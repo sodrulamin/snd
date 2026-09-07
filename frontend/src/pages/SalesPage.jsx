@@ -700,7 +700,7 @@ export default function SalesPage() {
                         >
                           {denominations.map((d) => (
                             <option key={d.id} value={d.id}>
-                              [{d.code || 'VOIP'}] {d.name} (৳{Number(d.retailPrice || d.faceValue).toFixed(0)}) — In-Stock: {d.availableStock}
+                              [{d.code || 'IPTSP'}] {d.name} (৳{Number(d.retailPrice || d.faceValue).toFixed(0)}) — In-Stock: {d.availableStock}
                             </option>
                           ))}
                         </select>

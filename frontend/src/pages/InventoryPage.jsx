@@ -117,7 +117,7 @@ export default function InventoryPage() {
   const handleOpenAddModal = () => {
     setFormError('');
     const firstDenom = denominations[0];
-    const code = firstDenom?.code || 'VOIP-100';
+    const code = firstDenom?.code || 'IPTSP-100';
     setBatchForm({
       denominationId: firstDenom?.id || '',
       startSerialNumber: `${code}-0001`,
@@ -289,7 +289,7 @@ export default function InventoryPage() {
                   </td>
                   <td className="p-3.5">
                     <span className="px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 font-mono text-[10px] font-bold mr-1.5 border border-teal-500/20">
-                      {b.denominationCode || 'VOIP'}
+                      {b.denominationCode || 'IPTSP'}
                     </span>
                     <span className="font-semibold text-white">{b.denominationName}</span>
                     <span className="text-teal-400 font-mono text-[11px] ml-1">(৳{Number(b.faceValue).toFixed(0)})</span>
@@ -386,7 +386,7 @@ export default function InventoryPage() {
                   onChange={(e) => {
                     const selectedId = e.target.value;
                     const d = denominations.find(item => String(item.id) === String(selectedId));
-                    const code = d?.code || 'VOIP';
+                    const code = d?.code || 'IPTSP';
                     setBatchForm({ 
                       ...batchForm, 
                       denominationId: selectedId,
@@ -399,7 +399,7 @@ export default function InventoryPage() {
                 >
                   {denominations.map((d) => (
                     <option key={d.id} value={d.id}>
-                      [{d.code || 'VOIP'}] {d.name} (Retail: ৳{Number(d.retailPrice || d.faceValue).toFixed(0)}, Wholesale: ৳{Number(d.wholesalePrice || d.faceValue).toFixed(0)})
+                      [{d.code || 'IPTSP'}] {d.name} (Retail: ৳{Number(d.retailPrice || d.faceValue).toFixed(0)}, Wholesale: ৳{Number(d.wholesalePrice || d.faceValue).toFixed(0)})
                     </option>
                   ))}
                 </select>

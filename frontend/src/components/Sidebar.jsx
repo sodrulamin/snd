@@ -41,7 +41,7 @@ export default function Sidebar() {
         </div>
         <div>
           <h1 className="font-bold text-lg leading-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-            VoIP S&D
+            IPTSP S&D
           </h1>
           <p className="text-xs text-teal-400 font-medium">Recharge Distribution</p>
         </div>

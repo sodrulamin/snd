@@ -38,7 +38,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-400 shadow-xl shadow-teal-500/20 mb-4">
             <CreditCard className="w-9 h-9 text-slate-950 stroke-[2.5]" />
           </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">VoIP S&D Portal</h1>
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">IPTSP S&D Portal</h1>
           <p className="text-sm text-slate-400 mt-1">Recharge Card Inventory, Sales & Distribution Engine</p>
         </div>
 
@@ -101,7 +101,7 @@ export default function LoginPage() {
 
         {/* System Footnote */}
         <p className="text-center text-xs text-slate-500 mt-6">
-          VoIP S&D Enterprise • Spring Boot 3 + MySQL Flyway + React
+          IPTSP S&D Enterprise • Spring Boot 3 + MySQL Flyway + React
         </p>
       </div>
     </div>

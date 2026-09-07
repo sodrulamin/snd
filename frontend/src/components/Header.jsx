@@ -27,7 +27,7 @@ export default function Header({ title, subtitle, onRefresh, children }) {
 
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20 text-xs font-semibold text-teal-400">
           <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-          <span>VoIP Platform Live</span>
+          <span>IPTSP Platform Live</span>
         </div>
 
         <div className="flex items-center gap-2 pl-3 border-l border-slate-800 text-slate-400 text-xs">

@@ -268,10 +268,10 @@ public class SalesService {
         SalesOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
         return SalesDto.InvoiceDto.builder()
-                .companyName("VoIP Global Connect Ltd.")
+                .companyName("IPTSP Global Connect Ltd.")
                 .companyAddress("Gulshan-2, Dhaka, Bangladesh")
                 .companyPhone("+880-2-9880000")
-                .companyEmail("billing@voipglobal.bd")
+                .companyEmail("billing@iptspglobal.bd")
                 .order(mapToOrderResponse(order))
                 .build();
     }

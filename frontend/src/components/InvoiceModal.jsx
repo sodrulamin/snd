@@ -63,10 +63,10 @@ export default function InvoiceModal({ invoice, onClose }) {
                 <div className="p-2 rounded-lg bg-teal-500 text-slate-950">
                   <PhoneCall className="w-5 h-5" />
                 </div>
-                <h1 className="text-xl font-bold tracking-tight text-white print:text-black">{companyName || 'VoIP Global Connect Ltd.'}</h1>
+                <h1 className="text-xl font-bold tracking-tight text-white print:text-black">{companyName || 'IPTSP Global Connect Ltd.'}</h1>
               </div>
               <p className="text-xs text-slate-400 print:text-slate-600 mt-2">{companyAddress || 'Gulshan-2, Dhaka, Bangladesh'}</p>
-              <p className="text-xs text-slate-400 print:text-slate-600">Tel: {companyPhone || '+880-2-9880000'} | Email: {companyEmail || 'billing@voipglobal.bd'}</p>
+              <p className="text-xs text-slate-400 print:text-slate-600">Tel: {companyPhone || '+880-2-9880000'} | Email: {companyEmail || 'billing@iptspglobal.bd'}</p>
             </div>
 
             <div className="text-left sm:text-right">
@@ -165,7 +165,7 @@ export default function InvoiceModal({ invoice, onClose }) {
             <p className="font-semibold text-slate-400 print:text-black">
               Serialized Product Notice: All cards in the specified serial ranges have been activated and allocated to {order.distributorName}.
             </p>
-            <p>Cryptographically hashed PINs are valid for subscriber talk-time recharge on the VoIP platform. Currency: Bangladeshi Taka (৳ / BDT).</p>
+            <p>Cryptographically hashed PINs are valid for subscriber talk-time recharge on the IPTSP platform. Currency: Bangladeshi Taka (৳ / BDT).</p>
           </div>
         </div>
       </div>
