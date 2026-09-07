@@ -7,13 +7,16 @@ import {
   Users, 
   BarChart3, 
   LogOut, 
-  CreditCard,
-  Tag
+  CreditCard, 
+  Tag, 
+  Loader2 
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { usePageLoading } from '../context/PageLoadingContext';
 
 export default function Sidebar() {
   const { user, logout, isAdmin } = useAuth();
+  const { isPageLoading } = usePageLoading();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -79,15 +82,36 @@ export default function Sidebar() {
               to={item.path}
               end={item.path === '/'}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm border outline-none focus:outline-none focus:ring-0 select-none transition-colors duration-150 ${
+                `flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-sm border outline-none focus:outline-none focus:ring-0 select-none transition-colors duration-150 ${
                   isActive
                     ? 'bg-gradient-to-r from-teal-500/20 to-teal-500/5 text-teal-300 border-teal-500/30 shadow-sm shadow-teal-500/10'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border-transparent'
                 }`
               }
             >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              <span>{item.name}</span>
+              {({ isActive }) => (
+                <>
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    <span>{item.name}</span>
+                  </div>
+                  {isActive && (
+                    <div className="flex items-center">
+                      {isPageLoading ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-400"></span>
+                          </span>
+                          <Loader2 className="w-3.5 h-3.5 text-teal-400 animate-spin opacity-85" />
+                        </div>
+                      ) : (
+                        <div className="w-1.5 h-1.5 rounded-full bg-teal-400 shadow-sm shadow-teal-400/50"></div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </NavLink>
           );
         })}

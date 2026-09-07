@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   DollarSign, 
-  Layers, 
+  Layers,
   ShoppingCart, 
   Users, 
   TrendingUp, 
-  PlusCircle, 
   ArrowUpRight, 
   Eye, 
   PhoneCall
@@ -15,20 +13,20 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell 
 } from 'recharts';
-import Header from '../components/Header';
 import StatCard from '../components/StatCard';
 import InvoiceModal from '../components/InvoiceModal';
 import { reportService, salesService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePageLoading } from '../context/PageLoadingContext';
 
 const PIE_COLORS = ['#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
 
 export default function DashboardPage() {
+  const { setPageLoading } = usePageLoading();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const { isAdmin } = useAuth();
-  const navigate = useNavigate();
 
   const fetchDashboardData = async () => {
     try {
@@ -41,6 +39,7 @@ export default function DashboardPage() {
       console.error('Failed to load dashboard summary', err);
     } finally {
       setLoading(false);
+      setPageLoading(false);
     }
   };
 
@@ -61,40 +60,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <Header 
-        title="Distribution & Inventory Dashboard" 
-        subtitle="Live metrics on VoIP recharge card stocks, distributor sales orders, and revenue (in Taka)"
-        onRefresh={fetchDashboardData}
-      />
-
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-teal-400 animate-pulse"></span>
-          <span className="text-xs font-semibold text-slate-300">Quick Shortcuts:</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          {isAdmin && (
-            <>
-              <button
-                onClick={() => navigate('/sales?action=new')}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-bold text-xs shadow-md shadow-teal-500/20 transition"
-              >
-                <PlusCircle className="w-4 h-4 stroke-[2.5]" />
-                New Distributor Sale
-              </button>
-              <button
-                onClick={() => navigate('/inventory?action=generate')}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition"
-              >
-                <Layers className="w-4 h-4 text-teal-400" />
-                Generate Card Batch
-              </button>
-            </>
-          )}
-
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Net Revenue"

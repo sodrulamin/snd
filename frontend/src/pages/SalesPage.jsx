@@ -18,8 +18,10 @@ import StatCard from '../components/StatCard';
 import InvoiceModal from '../components/InvoiceModal';
 import { salesService, distributorService, inventoryService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePageLoading } from '../context/PageLoadingContext';
 
 export default function SalesPage() {
+  const { setPageLoading } = usePageLoading();
   const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [distributors, setDistributors] = useState([]);
@@ -124,6 +126,7 @@ export default function SalesPage() {
       console.error('Failed to load sales data', err);
     } finally {
       setLoading(false);
+      setPageLoading(false);
     }
   };
 

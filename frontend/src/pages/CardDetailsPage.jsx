@@ -19,8 +19,10 @@ import {
 import StatCard from '../components/StatCard';
 import { inventoryService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePageLoading } from '../context/PageLoadingContext';
 
 export default function CardDetailsPage() {
+  const { setPageLoading } = usePageLoading();
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,6 +71,7 @@ export default function CardDetailsPage() {
       console.error('Failed to load card definitions', err);
     } finally {
       setLoading(false);
+      setPageLoading(false);
     }
   };
 

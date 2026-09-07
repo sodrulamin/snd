@@ -18,8 +18,10 @@ import {
 import Header from '../components/Header';
 import { distributorService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePageLoading } from '../context/PageLoadingContext';
 
 export default function DistributorsPage() {
+  const { setPageLoading } = usePageLoading();
   const [distributors, setDistributors] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -64,6 +66,7 @@ export default function DistributorsPage() {
       console.error('Failed to load distributors', err);
     } finally {
       setLoading(false);
+      setPageLoading(false);
     }
   };
 

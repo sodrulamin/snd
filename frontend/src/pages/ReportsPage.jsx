@@ -12,8 +12,10 @@ import {
 import Header from '../components/Header';
 import StatCard from '../components/StatCard';
 import { reportService } from '../services/api';
+import { usePageLoading } from '../context/PageLoadingContext';
 
 export default function ReportsPage() {
+  const { setPageLoading } = usePageLoading();
   const [report, setReport] = useState(null);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -37,6 +39,7 @@ export default function ReportsPage() {
       console.error('Failed to load financial report', err);
     } finally {
       setLoading(false);
+      setPageLoading(false);
     }
   };
 

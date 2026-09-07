@@ -19,8 +19,10 @@ import {
 import StatCard from '../components/StatCard';
 import { inventoryService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePageLoading } from '../context/PageLoadingContext';
 
 export default function InventoryPage() {
+  const { setPageLoading } = usePageLoading();
   const [denominations, setDenominations] = useState([]);
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +76,7 @@ export default function InventoryPage() {
       console.error('Failed to load inventory data', err);
     } finally {
       setLoading(false);
+      setPageLoading(false);
     }
   };
 
