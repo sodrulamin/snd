@@ -39,11 +39,13 @@ const CustomAreaTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-const CustomPieTooltip = ({ active, payload }) => {
+const CustomPieTooltip = ({ active, payload, totalActiveRevenue }) => {
   if (active && payload && payload.length) {
     const item = payload[0];
     const color = item.payload.fill || item.color || PIE_COLORS[0];
-    const percentage = item.payload.percentage !== undefined ? item.payload.percentage.toFixed(1) : '0';
+    const percentage = totalActiveRevenue > 0
+      ? ((Number(item.value) / totalActiveRevenue) * 100).toFixed(1)
+      : (item.payload.percentage !== undefined ? item.payload.percentage.toFixed(1) : '0');
     return (
       <div className="bg-slate-900/95 border border-slate-700/80 p-3 rounded-xl shadow-xl backdrop-blur-md text-xs min-w-[180px]">
         <div className="flex items-center gap-2 mb-1.5">
@@ -70,6 +72,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loadingInvoiceId, setLoadingInvoiceId] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [hiddenDenoms, setHiddenDenoms] = useState({});
   const { isAdmin } = useAuth();
 
   const fetchDashboardData = async () => {
@@ -103,6 +106,33 @@ export default function DashboardPage() {
     } finally {
       setLoadingInvoiceId(null);
     }
+  };
+
+  // Only denominations with actual sales contribution (revenue > 0 or cardsSold > 0)
+  const contributingDenominations = (summary?.denominationShares || []).filter(
+    (item) => Number(item.revenue || 0) > 0 || Number(item.cardsSold || 0) > 0
+  );
+
+  // Active items currently visible in the pie chart
+  const activePieData = contributingDenominations.filter(
+    (item) => !hiddenDenoms[item.denominationName]
+  );
+
+  const totalContributingRevenue = contributingDenominations.reduce(
+    (acc, curr) => acc + Number(curr.revenue || 0),
+    0
+  );
+
+  const totalActiveRevenue = activePieData.reduce(
+    (acc, curr) => acc + Number(curr.revenue || 0),
+    0
+  );
+
+  const toggleDenomination = (denomName) => {
+    setHiddenDenoms((prev) => ({
+      ...prev,
+      [denomName]: !prev[denomName]
+    }));
   };
 
   return (
@@ -176,40 +206,120 @@ export default function DashboardPage() {
         </div>
 
         <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col justify-between">
-          <div>
-            <h3 className="font-bold text-white text-base">Sales by Denomination</h3>
-            <p className="text-xs text-slate-400 mb-4">Volume distribution by card value</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-white text-base">Sales by Denomination</h3>
+              <p className="text-xs text-slate-400">Volume distribution by card value</p>
+            </div>
+            {contributingDenominations.length > 0 && Object.values(hiddenDenoms).some(Boolean) && (
+              <button
+                onClick={() => setHiddenDenoms({})}
+                className="text-[11px] font-semibold text-teal-400 hover:text-teal-300 transition"
+                title="Reset all hidden denominations"
+              >
+                Reset
+              </button>
+            )}
           </div>
 
-          <div className="h-56 w-full relative flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={summary?.denominationShares || []}
-                  dataKey="revenue"
-                  nameKey="denominationName"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={75}
-                  paddingAngle={4}
-                >
-                  {(summary?.denominationShares || []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomPieTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-slate-800 text-[11px]">
-            {(summary?.denominationShares || []).slice(0, 4).map((item, idx) => (
-              <div key={idx} className="flex items-center gap-1.5 hover:text-white transition-colors cursor-default">
-                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }}></span>
-                <span className="text-slate-300 hover:text-white truncate">{item.denominationName}</span>
+          <div className="h-56 w-full relative flex items-center justify-center my-1">
+            {activePieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={activePieData}
+                    dataKey="revenue"
+                    nameKey="denominationName"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={75}
+                    paddingAngle={4}
+                  >
+                    {activePieData.map((entry) => {
+                      const origIndex = contributingDenominations.findIndex(
+                        (d) => d.denominationName === entry.denominationName
+                      );
+                      const color = PIE_COLORS[(origIndex >= 0 ? origIndex : 0) % PIE_COLORS.length];
+                      return <Cell key={`cell-${entry.denominationName}`} fill={color} />;
+                    })}
+                  </Pie>
+                  <Tooltip content={<CustomPieTooltip totalActiveRevenue={totalActiveRevenue} />} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-center text-slate-500 text-xs py-8">
+                {contributingDenominations.length > 0
+                  ? 'All denominations hidden. Click names below to toggle.'
+                  : 'No sales recorded for any denomination yet.'}
               </div>
-            ))}
+            )}
+          </div>
+
+          {/* Interactive Contributing Denominations Legend */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-2 pt-3 border-t border-slate-800 text-[11px]">
+            {contributingDenominations.map((item, idx) => {
+              const isHidden = !!hiddenDenoms[item.denominationName];
+              const color = PIE_COLORS[idx % PIE_COLORS.length];
+              const amount = Number(item.revenue || 0);
+              const percentage = totalContributingRevenue > 0
+                ? ((amount / totalContributingRevenue) * 100).toFixed(1)
+                : '0';
+
+              return (
+                <div key={item.denominationName || idx} className="relative group">
+                  {/* Floating Hover Card Tooltip */}
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-40 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 transform scale-95 group-hover:scale-100 min-w-[170px] bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-xl p-2.5 shadow-2xl text-xs select-none">
+                    <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-slate-800">
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }}></span>
+                      <span className="font-bold text-white truncate">{item.denominationName}</span>
+                    </div>
+                    <div className="space-y-1 text-[11px]">
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span>Revenue:</span>
+                        <span className="font-mono font-bold text-teal-300">
+                          ৳{amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span>Share:</span>
+                        <span className="font-mono font-bold text-emerald-400">{percentage}%</span>
+                      </div>
+                      {item.cardsSold !== undefined && (
+                        <div className="flex items-center justify-between text-slate-400 text-[10px] pt-0.5 border-t border-slate-800/60">
+                          <span>Cards Sold:</span>
+                          <span className="font-medium text-slate-300">{Number(item.cardsSold).toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+                    {/* Tooltip Arrow */}
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-4 border-transparent border-t-slate-700/80"></div>
+                  </div>
+
+                  {/* Interactive Button */}
+                  <button
+                    onClick={() => toggleDenomination(item.denominationName)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all text-xs border cursor-pointer select-none ${
+                      isHidden
+                        ? 'opacity-40 bg-slate-800/20 border-slate-800 line-through text-slate-500 hover:opacity-70'
+                        : 'bg-slate-800/60 hover:bg-slate-800 border-slate-700/60 text-slate-200 hover:text-white shadow-sm active:scale-95'
+                    }`}
+                    title={`${item.denominationName}: ৳${amount.toFixed(2)} (${percentage}%) - Click to toggle`}
+                  >
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full flex-shrink-0 transition-transform ${
+                        isHidden ? 'bg-slate-600 scale-75' : 'scale-100 shadow-sm'
+                      }`}
+                      style={{ backgroundColor: isHidden ? undefined : color }}
+                    />
+                    <span className="truncate max-w-[140px] font-medium">{item.denominationName}</span>
+                  </button>
+                </div>
+              );
+            })}
+            {contributingDenominations.length === 0 && (
+              <p className="text-slate-500 text-center w-full py-1 text-xs">No active denomination sales</p>
+            )}
           </div>
         </div>
       </div>
