@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { PageLoadingProvider } from './context/PageLoadingContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -10,6 +11,7 @@ import SalesPage from './pages/SalesPage';
 import DistributorsPage from './pages/DistributorsPage';
 import ReportsPage from './pages/ReportsPage';
 import CardDetailsPage from './pages/CardDetailsPage';
+import ThemeSettingsPage from './pages/ThemeSettingsPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -34,32 +36,36 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-      <PageLoadingProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <PageLoadingProvider>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
 
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<DashboardPage />} />
-            <Route path="inventory" element={<InventoryPage />} />
-            <Route path="sales" element={<SalesPage />} />
-            <Route path="distributors" element={<DistributorsPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="cards" element={<CardDetailsPage />} />
-          </Route>
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<DashboardPage />} />
+                <Route path="inventory" element={<InventoryPage />} />
+                <Route path="sales" element={<SalesPage />} />
+                <Route path="distributors" element={<DistributorsPage />} />
+                <Route path="reports" element={<ReportsPage />} />
+                <Route path="cards" element={<CardDetailsPage />} />
+                <Route path="settings" element={<Navigate to="/settings/theme" replace />} />
+                <Route path="settings/theme" element={<ThemeSettingsPage />} />
+              </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </PageLoadingProvider>
-      </BrowserRouter>
-    </AuthProvider>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </PageLoadingProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

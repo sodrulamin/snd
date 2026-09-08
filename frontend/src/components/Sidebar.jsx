@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Layers, 
@@ -8,7 +8,11 @@ import {
   BarChart3, 
   LogOut, 
   CreditCard, 
-  Tag 
+  Tag,
+  Settings,
+  Palette,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
@@ -17,6 +21,10 @@ export default function Sidebar() {
   const { user, logout, isAdmin } = useAuth();
   const { isPageLoading } = usePageLoading();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isSettingsActive = location.pathname.startsWith('/settings');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsActive || true);
 
   const handleLogout = () => {
     logout();
@@ -30,6 +38,10 @@ export default function Sidebar() {
     { name: 'Distributors', path: '/distributors', icon: Users },
     { name: 'Reports & Revenue', path: '/reports', icon: BarChart3 },
     { name: 'Manage Card', path: '/cards', icon: Tag },
+  ];
+
+  const settingsSubItems = [
+    { name: 'Theme Selection', path: '/settings/theme', icon: Palette },
   ];
 
   return (
@@ -112,6 +124,64 @@ export default function Sidebar() {
             </NavLink>
           );
         })}
+
+        {/* Settings Menu with Expandable Sub-Menu */}
+        <div className="pt-1">
+          <button
+            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-sm border outline-none focus:outline-none select-none transition-colors duration-150 ${
+              isSettingsActive
+                ? 'bg-slate-800/60 text-teal-300 border-slate-700/60'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border-transparent'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Settings className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${isSettingsOpen ? 'rotate-45 text-teal-400' : ''}`} />
+              <span>Settings</span>
+            </div>
+            <div className="flex items-center">
+              {isSettingsOpen ? (
+                <ChevronDown className="w-4 h-4 text-slate-400 transition-transform duration-200" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-slate-400 transition-transform duration-200" />
+              )}
+            </div>
+          </button>
+
+          {/* Sub Menu Container */}
+          {isSettingsOpen && (
+            <div className="mt-1 ml-4 pl-3 border-l-2 border-slate-800 space-y-1 animate-fadeIn">
+              {settingsSubItems.map((subItem) => {
+                const SubIcon = subItem.icon;
+                return (
+                  <NavLink
+                    key={subItem.path}
+                    to={subItem.path}
+                    className={({ isActive }) =>
+                      `flex items-center justify-between px-3 py-2 rounded-lg font-medium text-xs border outline-none select-none transition-colors duration-150 ${
+                        isActive
+                          ? 'bg-teal-500/15 text-teal-300 border-teal-500/30 shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <div className="flex items-center gap-2.5">
+                          <SubIcon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-teal-400' : 'text-slate-500'}`} />
+                          <span>{subItem.name}</span>
+                        </div>
+                        {isActive && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-teal-400 shadow-sm shadow-teal-400/50"></div>
+                        )}
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </nav>
 
       {/* Sign Out Footer */}
