@@ -108,10 +108,10 @@ export default function DashboardPage() {
     }
   };
 
-  // Only denominations with actual sales contribution (revenue > 0 or cardsSold > 0)
-  const contributingDenominations = (summary?.denominationShares || []).filter(
-    (item) => Number(item.revenue || 0) > 0 || Number(item.cardsSold || 0) > 0
-  );
+  // Only denominations with actual sales contribution (revenue > 0 or cardsSold > 0), sorted by percentage / revenue desc
+  const contributingDenominations = (summary?.denominationShares || [])
+    .filter((item) => Number(item.revenue || 0) > 0 || Number(item.cardsSold || 0) > 0)
+    .sort((a, b) => Number(b.revenue || b.percentage || 0) - Number(a.revenue || a.percentage || 0));
 
   // Active items currently visible in the pie chart
   const activePieData = contributingDenominations.filter(

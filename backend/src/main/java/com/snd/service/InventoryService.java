@@ -10,6 +10,8 @@ import com.snd.repository.CardDenominationRepository;
 import com.snd.repository.RechargeCardRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 
 import java.util.Objects;
@@ -138,6 +140,62 @@ public class InventoryService {
 
     public List<InventoryDto.BatchSummaryDto> getAllBatches() {
         return batchRepository.findByStatusOrderByGeneratedAtDesc(BatchStatus.AVAILABLE).stream().map(this::mapToBatchSummary).collect(Collectors.toList());
+    }
+
+    public Page<InventoryDto.BatchSummaryDto> getBatches(
+            Pageable pageable, String statusStr, Long denominationId, String search) {
+        BatchStatus status = null;
+        if (statusStr != null && !statusStr.isBlank() && !"ALL".equalsIgnoreCase(statusStr)) {
+            try {
+                status = BatchStatus.valueOf(statusStr.toUpperCase());
+            } catch (IllegalArgumentException ignored) {}
+        }
+        String cleanSearch = (search != null && !search.isBlank()) ? search.trim() : null;
+
+        return batchRepository.findBatchesFiltered(status, denominationId, cleanSearch, pageable)
+            .map(this::mapToBatchSummary);
+    }
+
+    public List<InventoryDto.BatchSummaryDto> getBatchesFilteredList(String statusStr, Long denominationId, String search) {
+        BatchStatus status = null;
+        if (statusStr != null && !statusStr.isBlank() && !"ALL".equalsIgnoreCase(statusStr)) {
+            try {
+                status = BatchStatus.valueOf(statusStr.toUpperCase());
+            } catch (IllegalArgumentException ignored) {}
+        }
+        String cleanSearch = (search != null && !search.isBlank()) ? search.trim() : null;
+
+        return batchRepository.findBatchesFilteredList(status, denominationId, cleanSearch)
+            .stream()
+            .map(this::mapToBatchSummary)
+            .collect(Collectors.toList());
+    }
+
+    public InventoryDto.InventorySummaryDto getInventorySummary() {
+        List<CardBatch> availableBatches = batchRepository.findByStatus(BatchStatus.AVAILABLE);
+        long totalLots = availableBatches.size();
+        long inStockCards = 0;
+        BigDecimal totalWholesaleValue = BigDecimal.ZERO;
+        BigDecimal totalRetailValue = BigDecimal.ZERO;
+
+        for (CardBatch b : availableBatches) {
+            InventoryDto.BatchSummaryDto dto = mapToBatchSummary(b);
+            long qty = dto.getInStockCount() != null ? dto.getInStockCount() : (dto.getQuantity() != null ? dto.getQuantity() : 0);
+            inStockCards += qty;
+
+            BigDecimal unitWholesale = dto.getWholesalePrice() != null ? dto.getWholesalePrice() : (dto.getFaceValue() != null ? dto.getFaceValue() : BigDecimal.ZERO);
+            BigDecimal unitRetail = dto.getRetailPrice() != null ? dto.getRetailPrice() : (dto.getFaceValue() != null ? dto.getFaceValue() : BigDecimal.ZERO);
+
+            totalWholesaleValue = totalWholesaleValue.add(unitWholesale.multiply(BigDecimal.valueOf(qty)));
+            totalRetailValue = totalRetailValue.add(unitRetail.multiply(BigDecimal.valueOf(qty)));
+        }
+
+        return InventoryDto.InventorySummaryDto.builder()
+            .totalLots(totalLots)
+            .inStockCards(inStockCards)
+            .totalWholesaleValue(totalWholesaleValue)
+            .totalRetailValue(totalRetailValue)
+            .build();
     }
 
     public List<InventoryDto.BatchSummaryDto> getBatchesByStatus(String status) {

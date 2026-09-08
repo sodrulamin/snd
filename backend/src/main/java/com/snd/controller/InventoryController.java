@@ -5,6 +5,8 @@ import com.snd.dto.InventoryDto;
 import com.snd.service.InventoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -53,9 +55,30 @@ public class InventoryController {
     }
 
     @GetMapping("/batches")
-    public ResponseEntity<ApiResponse<List<InventoryDto.BatchSummaryDto>>> getBatches(
-            @RequestParam(required = false, defaultValue = "AVAILABLE") String status) {
-        return ResponseEntity.ok(ApiResponse.success(inventoryService.getBatchesByStatus(status)));
+    public ResponseEntity<ApiResponse<Page<InventoryDto.BatchSummaryDto>>> getBatches(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false, defaultValue = "AVAILABLE") String status,
+            @RequestParam(required = false) Long denominationId,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(ApiResponse.success(
+            inventoryService.getBatches(PageRequest.of(page, size), status, denominationId, search)
+        ));
+    }
+
+    @GetMapping("/batches/all")
+    public ResponseEntity<ApiResponse<List<InventoryDto.BatchSummaryDto>>> getAllBatches(
+            @RequestParam(required = false, defaultValue = "AVAILABLE") String status,
+            @RequestParam(required = false) Long denominationId,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(ApiResponse.success(
+            inventoryService.getBatchesFilteredList(status, denominationId, search)
+        ));
+    }
+
+    @GetMapping("/batches/summary")
+    public ResponseEntity<ApiResponse<InventoryDto.InventorySummaryDto>> getInventorySummary() {
+        return ResponseEntity.ok(ApiResponse.success(inventoryService.getInventorySummary()));
     }
 
     @GetMapping("/batches/{id}")

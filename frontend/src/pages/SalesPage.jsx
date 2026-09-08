@@ -184,7 +184,7 @@ export default function SalesPage() {
         salesService.getOrders({ page, size: 15 }),
         distributorService.getAll(),
         inventoryService.getActiveDenominations(),
-        inventoryService.getBatches(),
+        inventoryService.getAllBatches(),
       ]);
 
       if (ordersRes.data?.success) {

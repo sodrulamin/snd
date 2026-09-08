@@ -160,4 +160,15 @@ public class InventoryDto {
         private Integer availableCount;
         private String batchNumber;
     }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class InventorySummaryDto {
+        private long totalLots;
+        private long inStockCards;
+        private BigDecimal totalWholesaleValue;
+        private BigDecimal totalRetailValue;
+    }
 }
