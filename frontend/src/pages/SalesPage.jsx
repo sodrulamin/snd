@@ -429,7 +429,7 @@ export default function SalesPage() {
         <StatCard
           title="Total Net Sales"
           value={`৳${totalNetRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          subtext={`Gross Face Value: ৳${totalGrossValue.toFixed(2)}`}
+          subtext={`Retail Value: ৳${totalGrossValue.toFixed(2)}`}
           icon={DollarSign}
           color="teal"
         />

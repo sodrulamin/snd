@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function StatCard({ title, value, subtext, icon: Icon, color = 'teal', trend }) {
+export default function StatCard({ title, value, subtext, icon: Icon, color = 'teal', trend, trendPositive }) {
   const colorMap = {
     teal: 'from-teal-500/20 to-teal-500/5 border-teal-500/30 text-teal-400',
     emerald: 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/30 text-emerald-400',
@@ -10,6 +10,7 @@ export default function StatCard({ title, value, subtext, icon: Icon, color = 't
   };
 
   const selectedColor = colorMap[color] || colorMap.teal;
+  const isPositive = trendPositive !== undefined ? trendPositive : (!trend?.startsWith('-'));
 
   return (
     <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${selectedColor} border p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5`}>
@@ -19,7 +20,11 @@ export default function StatCard({ title, value, subtext, icon: Icon, color = 't
           <h3 className="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight">{value}</h3>
           {subtext && <p className="text-xs text-slate-400 mt-1">{subtext}</p>}
           {trend && (
-            <span className="inline-block mt-2 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+            <span className={`inline-block mt-2 text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+              isPositive 
+                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' 
+                : 'bg-rose-500/15 text-rose-400 border-rose-500/20'
+            }`}>
               {trend}
             </span>
           )}

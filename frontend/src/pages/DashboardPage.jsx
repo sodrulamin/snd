@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   DollarSign, 
   Layers,
@@ -21,10 +22,53 @@ import { usePageLoading } from '../context/PageLoadingContext';
 
 const PIE_COLORS = ['#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
 
+// Custom Tooltips for Charts
+const CustomAreaTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-900/95 border border-slate-700/80 p-3 rounded-xl shadow-xl backdrop-blur-md text-xs">
+        <p className="font-semibold text-slate-400 mb-1.5">{label}</p>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-teal-400 shadow-sm shadow-teal-400/50"></span>
+          <span className="text-slate-300">Revenue:</span>
+          <span className="font-mono font-bold text-teal-300">৳{Number(payload[0].value).toFixed(2)}</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomPieTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const item = payload[0];
+    const color = item.payload.fill || item.color || PIE_COLORS[0];
+    const percentage = item.payload.percentage !== undefined ? item.payload.percentage.toFixed(1) : '0';
+    return (
+      <div className="bg-slate-900/95 border border-slate-700/80 p-3 rounded-xl shadow-xl backdrop-blur-md text-xs min-w-[180px]">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }}></span>
+          <span className="font-semibold text-white truncate">{item.name || item.payload.denominationName}</span>
+        </div>
+        <div className="flex items-center justify-between gap-3 text-slate-300">
+          <span>Revenue:</span>
+          <span className="font-mono font-bold text-teal-300">
+            ৳{Number(item.value).toFixed(2)}
+            <span className="text-slate-400 font-normal text-[11px] ml-1">({percentage}%)</span>
+          </span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const { setPageLoading } = usePageLoading();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingInvoiceId, setLoadingInvoiceId] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const { isAdmin } = useAuth();
 
@@ -49,12 +93,15 @@ export default function DashboardPage() {
 
   const handleViewInvoice = async (orderId) => {
     try {
+      setLoadingInvoiceId(orderId);
       const res = await salesService.getInvoice(orderId);
       if (res.data && res.data.success) {
         setSelectedInvoice(res.data.data);
       }
     } catch (err) {
-      alert('Could not load invoice');
+      alert('Could not load invoice details.');
+    } finally {
+      setLoadingInvoiceId(null);
     }
   };
 
@@ -62,33 +109,38 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Total Net Revenue"
-          value={`৳${summary ? Number(summary.totalRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}`}
-          subtext={`Gross Face Value: ৳${summary ? Number(summary.totalFaceValueSold || 0).toFixed(2) : '0.00'}`}
-          icon={DollarSign}
-          color="teal"
-          trend="+14.2% this month"
+          title="Active Distributors"
+          value={summary ? summary.totalDistributors || 0 : '0'}
+          subtext={summary?.lowStockAlertsCount > 0 ? `${summary.lowStockAlertsCount} low stock alerts` : 'All stocks healthy'}
+          icon={Users}
+          color={summary?.lowStockAlertsCount > 0 ? 'amber' : 'purple'}
         />
         <StatCard
-          title="Cards Sold / Distributed"
-          value={summary ? Number(summary.totalCardsSold || 0).toLocaleString() : '0'}
-          subtext="Allocated to distributors"
-          icon={ShoppingCart}
-          color="emerald"
-        />
-        <StatCard
-          title="Available In-Stock"
+          title="Available Cards"
           value={summary ? Number(summary.totalCardsInStock || 0).toLocaleString() : '0'}
           subtext={`Across ${summary?.totalBatches || 0} batches`}
           icon={Layers}
           color="blue"
         />
         <StatCard
-          title="Active Distributors"
-          value={summary ? summary.totalDistributors || 0 : '0'}
-          subtext={summary?.lowStockAlertsCount > 0 ? `${summary.lowStockAlertsCount} low stock alerts` : 'All stocks healthy'}
-          icon={Users}
-          color={summary?.lowStockAlertsCount > 0 ? 'amber' : 'purple'}
+          title="Sold Cards"
+          value={summary ? Number(summary.totalCardsSold || 0).toLocaleString() : '0'}
+          subtext="Allocated to distributors"
+          icon={ShoppingCart}
+          color="emerald"
+        />
+        <StatCard
+          title="Total Revenue"
+          value={`৳${summary ? Number(summary.totalRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}`}
+          subtext={`Retail Value: ৳${summary ? Number(summary.totalFaceValueSold || 0).toFixed(2) : '0.00'}`}
+          icon={DollarSign}
+          color="teal"
+          trend={
+            summary?.revenueGrowthPercentage !== undefined && summary?.revenueGrowthPercentage !== null
+              ? `${summary.revenueGrowthPercentage >= 0 ? '+' : ''}${summary.revenueGrowthPercentage.toFixed(1)}% vs last month`
+              : null
+          }
+          trendPositive={summary?.revenueGrowthPercentage >= 0}
         />
       </div>
 
@@ -116,10 +168,7 @@ export default function DashboardPage() {
                 </defs>
                 <XAxis dataKey="period" stroke="#64748b" fontSize={12} tickLine={false} />
                 <YAxis stroke="#64748b" fontSize={12} tickLine={false} tickFormatter={(v) => `৳${v}`} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
-                  formatter={(value) => [`৳${Number(value).toFixed(2)}`, 'Revenue']}
-                />
+                <Tooltip content={<CustomAreaTooltip />} />
                 <Area type="monotone" dataKey="revenue" stroke="#14b8a6" strokeWidth={3} fillOpacity={1} fill="url(#revenueGrad)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -149,19 +198,16 @@ export default function DashboardPage() {
                     <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
-                  formatter={(val, name, entry) => [`৳${Number(val).toFixed(2)} (${entry.payload.percentage.toFixed(1)}%)`, entry.payload.denominationName]}
-                />
+                <Tooltip content={<CustomPieTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
           <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-slate-800 text-[11px]">
             {(summary?.denominationShares || []).slice(0, 4).map((item, idx) => (
-              <div key={idx} className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }}></span>
-                <span className="text-slate-300 truncate">{item.denominationName}</span>
+              <div key={idx} className="flex items-center gap-1.5 hover:text-white transition-colors cursor-default">
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }}></span>
+                <span className="text-slate-300 hover:text-white truncate">{item.denominationName}</span>
               </div>
             ))}
           </div>
@@ -256,10 +302,11 @@ export default function DashboardPage() {
                     <td className="py-3 text-right">
                       <button
                         onClick={() => handleViewInvoice(order.id)}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                        disabled={loadingInvoiceId === order.id}
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition disabled:opacity-50"
                         title="View Invoice & PINs"
                       >
-                        <Eye className="w-3.5 h-3.5" />
+                        <Eye className={`w-3.5 h-3.5 ${loadingInvoiceId === order.id ? 'animate-pulse text-teal-400' : ''}`} />
                       </button>
                     </td>
                   </tr>
@@ -277,9 +324,8 @@ export default function DashboardPage() {
 
       {selectedInvoice && (
         <InvoiceModal
-          isOpen={!!selectedInvoice}
+          invoice={selectedInvoice}
           onClose={() => setSelectedInvoice(null)}
-          invoiceData={selectedInvoice}
         />
       )}
     </div>

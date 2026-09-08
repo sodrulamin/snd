@@ -44,9 +44,18 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
     @Query("SELECT COALESCE(SUM(o.finalAmount), 0) FROM SalesOrder o WHERE o.paymentStatus = 'PAID'")
     BigDecimal calculateTotalRevenue();
 
+    @Query("SELECT COALESCE(SUM(o.finalAmount), 0) FROM SalesOrder o WHERE o.paymentStatus = 'PAID' AND o.createdAt >= :startDate AND o.createdAt <= :endDate")
+    BigDecimal calculateRevenueBetween(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
+
     @Query("SELECT COALESCE(SUM(o.totalFaceValue), 0) FROM SalesOrder o")
     BigDecimal calculateTotalFaceValueSold();
 
+    @Query("SELECT COALESCE(SUM(o.totalFaceValue), 0) FROM SalesOrder o WHERE o.createdAt >= :startDate AND o.createdAt <= :endDate")
+    BigDecimal calculateFaceValueSoldBetween(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
+
     @Query("SELECT COALESCE(SUM(o.totalCardsCount), 0) FROM SalesOrder o")
     Long calculateTotalCardsSold();
+
+    @Query("SELECT COALESCE(SUM(o.totalCardsCount), 0) FROM SalesOrder o WHERE o.createdAt >= :startDate AND o.createdAt <= :endDate")
+    Long calculateCardsSoldBetween(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 }

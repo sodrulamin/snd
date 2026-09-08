@@ -31,11 +31,33 @@ public class ReportService {
     private final SalesService salesService;
 
     public ReportDto.DashboardSummaryDto getDashboardSummary() {
-        BigDecimal totalRevenue = orderRepository.calculateTotalRevenue();
-        BigDecimal totalFaceValue = orderRepository.calculateTotalFaceValueSold();
+        LocalDate now = LocalDate.now();
+        LocalDateTime currentMonthStart = now.withDayOfMonth(1).atStartOfDay();
+        LocalDateTime currentMonthEnd = now.withDayOfMonth(now.lengthOfMonth()).atTime(23, 59, 59);
+
+        LocalDate lastMonthDate = now.minusMonths(1);
+        LocalDateTime lastMonthStart = lastMonthDate.withDayOfMonth(1).atStartOfDay();
+        LocalDateTime lastMonthEnd = lastMonthDate.withDayOfMonth(lastMonthDate.lengthOfMonth()).atTime(23, 59, 59);
+
+        BigDecimal totalRevenue = orderRepository.calculateRevenueBetween(currentMonthStart, currentMonthEnd);
+        BigDecimal lastMonthRevenue = orderRepository.calculateRevenueBetween(lastMonthStart, lastMonthEnd);
+
+        Double growthPercentage = null;
+        if (lastMonthRevenue != null && lastMonthRevenue.compareTo(BigDecimal.ZERO) > 0) {
+            growthPercentage = totalRevenue.subtract(lastMonthRevenue)
+                    .divide(lastMonthRevenue, 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100))
+                    .doubleValue();
+        } else if (totalRevenue.compareTo(BigDecimal.ZERO) > 0) {
+            growthPercentage = 100.0;
+        } else {
+            growthPercentage = 0.0;
+        }
+
+        BigDecimal totalFaceValue = orderRepository.calculateFaceValueSoldBetween(currentMonthStart, currentMonthEnd);
         BigDecimal totalDiscounts = totalFaceValue.subtract(totalRevenue);
-        Long totalCardsSold = orderRepository.calculateTotalCardsSold();
-        long totalInStock = batchRepository.countCardByStatus(BatchStatus.AVAILABLE);//rechargeCardRepository.countByStatus("IN_STOCK");
+        Long totalCardsSold = orderRepository.calculateCardsSoldBetween(currentMonthStart, currentMonthEnd);
+        long totalInStock = batchRepository.countCardByStatus(BatchStatus.AVAILABLE);
         long totalBatches = batchRepository.countDistinctBatch(BatchStatus.AVAILABLE);
         long totalDistributors = userRepository.findByRole("DISTRIBUTOR").size();
 
@@ -55,6 +77,8 @@ public class ReportService {
 
         return ReportDto.DashboardSummaryDto.builder()
                 .totalRevenue(totalRevenue)
+                .lastMonthRevenue(lastMonthRevenue)
+                .revenueGrowthPercentage(growthPercentage)
                 .totalFaceValueSold(totalFaceValue)
                 .totalDiscountsGiven(totalDiscounts.compareTo(BigDecimal.ZERO) > 0 ? totalDiscounts : BigDecimal.ZERO)
                 .totalCardsSold(totalCardsSold)

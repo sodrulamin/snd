@@ -121,7 +121,7 @@ export default function ReportsPage() {
       {/* Financial KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Gross Face Value"
+          title="Retail Value"
           value={`৳${report ? Number(report.grossSales || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}`}
           subtext="Total face value distributed"
           icon={DollarSign}

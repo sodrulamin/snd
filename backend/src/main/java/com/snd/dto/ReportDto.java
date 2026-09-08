@@ -16,6 +16,8 @@ public class ReportDto {
     @AllArgsConstructor
     public static class DashboardSummaryDto {
         private BigDecimal totalRevenue;
+        private BigDecimal lastMonthRevenue;
+        private Double revenueGrowthPercentage;
         private BigDecimal totalFaceValueSold;
         private BigDecimal totalDiscountsGiven;
         private Long totalCardsSold;

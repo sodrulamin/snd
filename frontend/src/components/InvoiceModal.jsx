@@ -11,17 +11,23 @@ import {
 } from 'lucide-react';
 import { inventoryService } from '../services/api';
 
-export default function InvoiceModal({ invoice, onClose }) {
-  if (!invoice || !invoice.order) return null;
+export default function InvoiceModal({ invoice, invoiceData, onClose }) {
+  const data = invoice || invoiceData;
+  if (!data || !data.order) return null;
 
-  const { order, companyName, companyAddress, companyPhone, companyEmail } = invoice;
+  const { order, companyName, companyAddress, companyPhone, companyEmail } = data;
 
   const handlePrint = () => {
     window.print();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-fadeIn">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto animate-fadeIn"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl my-8">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/50 print:hidden">
           <div className="flex items-center gap-2">
@@ -136,7 +142,7 @@ export default function InvoiceModal({ invoice, onClose }) {
                 <span className="font-bold text-white print:text-black">{order.totalCardsCount} units</span>
               </div>
               <div className="flex justify-between text-slate-400">
-                <span>Gross Face Value:</span>
+                <span>Retail Value:</span>
                 <span className="font-mono">৳{Number(order.totalFaceValue).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-emerald-400">
