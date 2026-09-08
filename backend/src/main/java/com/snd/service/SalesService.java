@@ -1,6 +1,7 @@
 package com.snd.service;
 
 import com.snd.dto.SalesDto;
+import com.snd.enums.BatchStatus;
 import com.snd.model.*;
 import com.snd.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -116,7 +117,7 @@ public class SalesService {
             int itemQty = (int) (numEnd - numStart + 1);
 
             // Find matching available batch encompassing [numStart, numEnd]
-            List<CardBatch> availableBatches = batchRepository.findByDenominationIdAndStatus(denomination.getId(), "AVAILABLE");
+            List<CardBatch> availableBatches = batchRepository.findByDenominationIdAndStatus(denomination.getId(), BatchStatus.AVAILABLE);
             CardBatch matchingBatch = null;
             long bStartNum = 0, bEndNum = 0;
             int bPadLen = Math.max(numStartStr.length(), numEndStr.length());
@@ -161,7 +162,7 @@ public class SalesService {
             matchingBatch.setEndSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", numEnd));
             matchingBatch.setQuantity(itemQty);
             matchingBatch.setTotalFaceValue(unitWholesalePrice.multiply(BigDecimal.valueOf(itemQty)));
-            matchingBatch.setStatus("SOLD");
+            matchingBatch.setStatus(BatchStatus.SOLD);
             CardBatch soldBatch = batchRepository.save(matchingBatch);
 
             // 2. Breakdown and recreate CardBatch for remaining available ranges keeping the same batchNumber
@@ -175,7 +176,7 @@ public class SalesService {
                         .endSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", bEndNum))
                         .quantity(remQty)
                         .totalFaceValue(unitWholesalePrice.multiply(BigDecimal.valueOf(remQty)))
-                        .status("AVAILABLE")
+                        .status(BatchStatus.AVAILABLE)
                         .createdBy(createdByUsername)
                         .notes(matchingBatch.getNotes())
                         .build();
@@ -191,7 +192,7 @@ public class SalesService {
                         .endSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", numStart - 1))
                         .quantity(remQty)
                         .totalFaceValue(unitWholesalePrice.multiply(BigDecimal.valueOf(remQty)))
-                        .status("AVAILABLE")
+                        .status(BatchStatus.AVAILABLE)
                         .createdBy(createdByUsername)
                         .notes(matchingBatch.getNotes())
                         .build();
@@ -207,7 +208,7 @@ public class SalesService {
                         .endSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", numStart - 1))
                         .quantity(remQty1)
                         .totalFaceValue(unitWholesalePrice.multiply(BigDecimal.valueOf(remQty1)))
-                        .status("AVAILABLE")
+                        .status(BatchStatus.AVAILABLE)
                         .createdBy(createdByUsername)
                         .notes(matchingBatch.getNotes())
                         .build();
@@ -221,7 +222,7 @@ public class SalesService {
                         .endSerialNumber(bPrefix + String.format("%0" + bPadLen + "d", bEndNum))
                         .quantity(remQty2)
                         .totalFaceValue(unitWholesalePrice.multiply(BigDecimal.valueOf(remQty2)))
-                        .status("AVAILABLE")
+                        .status(BatchStatus.AVAILABLE)
                         .createdBy(createdByUsername)
                         .notes(matchingBatch.getNotes())
                         .build();

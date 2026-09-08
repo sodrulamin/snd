@@ -1,6 +1,7 @@
 package com.snd.service;
 
 import com.snd.dto.InventoryDto;
+import com.snd.enums.BatchStatus;
 import com.snd.model.CardBatch;
 import com.snd.model.CardDenomination;
 import com.snd.model.RechargeCard;
@@ -136,14 +137,19 @@ public class InventoryService {
     }
 
     public List<InventoryDto.BatchSummaryDto> getAllBatches() {
-        return batchRepository.findByStatusOrderByGeneratedAtDesc("AVAILABLE").stream().map(this::mapToBatchSummary).collect(Collectors.toList());
+        return batchRepository.findByStatusOrderByGeneratedAtDesc(BatchStatus.AVAILABLE).stream().map(this::mapToBatchSummary).collect(Collectors.toList());
     }
 
     public List<InventoryDto.BatchSummaryDto> getBatchesByStatus(String status) {
-        if ("ALL".equalsIgnoreCase(status)) {
+        if (status == null || "ALL".equalsIgnoreCase(status)) {
             return batchRepository.findAllByOrderByGeneratedAtDesc().stream().map(this::mapToBatchSummary).collect(Collectors.toList());
         }
-        return batchRepository.findByStatusOrderByGeneratedAtDesc(status).stream().map(this::mapToBatchSummary).collect(Collectors.toList());
+        try {
+            BatchStatus batchStatus = BatchStatus.valueOf(status.toUpperCase());
+            return batchRepository.findByStatusOrderByGeneratedAtDesc(batchStatus).stream().map(this::mapToBatchSummary).collect(Collectors.toList());
+        } catch (IllegalArgumentException e) {
+            return java.util.Collections.emptyList();
+        }
     }
 
     public InventoryDto.BatchSummaryDto getBatchById(Long id) {
@@ -207,7 +213,7 @@ public class InventoryService {
             .startSerialNumber(startSerial)
             .endSerialNumber(endSerial)
             .totalFaceValue(totalPrice)
-            .status("AVAILABLE")
+            .status(BatchStatus.AVAILABLE)
             .notes(request.getNotes())
             .createdBy(username)
             .build();
@@ -218,7 +224,7 @@ public class InventoryService {
     }
 
     private InventoryDto.DenominationResponse mapToDenominationResponse(CardDenomination d) {
-        List<CardBatch> batches = batchRepository.findByDenominationIdAndStatus(d.getId(), "AVAILABLE");
+        List<CardBatch> batches = batchRepository.findByDenominationIdAndStatus(d.getId(), BatchStatus.AVAILABLE);
         long available = 0;
         for (CardBatch b : batches) {
             long batchCount = 0;
@@ -247,7 +253,7 @@ public class InventoryService {
         }
         long sold = rechargeCardRepository.countByDenominationIdAndStatus(d.getId(), "SOLD");
         if (sold == 0) {
-            List<CardBatch> soldBatches = batchRepository.findByDenominationIdAndStatus(d.getId(), "SOLD");
+            List<CardBatch> soldBatches = batchRepository.findByDenominationIdAndStatus(d.getId(), BatchStatus.SOLD);
             for (CardBatch b : soldBatches) {
                 sold += (b.getQuantity() != null ? b.getQuantity() : 0);
             }
@@ -296,8 +302,8 @@ public class InventoryService {
             count = b.getQuantity();
         }
 
-        long inStock = "SOLD".equalsIgnoreCase(b.getStatus()) ? 0 : count;
-        long sold = "SOLD".equalsIgnoreCase(b.getStatus()) ? count : 0;
+        long inStock = b.getStatus() == BatchStatus.SOLD ? 0 : count;
+        long sold = b.getStatus() == BatchStatus.SOLD ? count : 0;
 
         log.info("Batch id: {} number: {} status: {} in stock: {} sold: {}", b.getId(), b.getBatchNumber(), b.getStatus(), inStock, sold);
 
@@ -361,7 +367,7 @@ public class InventoryService {
                 .build();
         }
 
-        List<CardBatch> batches = batchRepository.findByDenominationIdAndStatus(denominationId, "AVAILABLE");
+        List<CardBatch> batches = batchRepository.findByDenominationIdAndStatus(denominationId, BatchStatus.AVAILABLE);
         if (!batches.isEmpty()) {
             CardBatch b = batches.get(0);
             long count = b.getQuantity() != null ? b.getQuantity() : 0;
@@ -403,7 +409,7 @@ public class InventoryService {
         CardBatch batch = batchRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Inventory lot not found: " + id));
 
-        if ("SOLD".equalsIgnoreCase(batch.getStatus())) {
+        if (batch.getStatus() == BatchStatus.SOLD) {
             throw new IllegalStateException("Cannot delete inventory lot '" + batch.getBatchNumber() + "' because it has already been sold.");
         }
 

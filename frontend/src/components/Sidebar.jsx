@@ -24,7 +24,7 @@ export default function Sidebar() {
   const location = useLocation();
 
   const isSettingsActive = location.pathname.startsWith('/settings');
-  const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsActive || true);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsActive);
 
   const handleLogout = () => {
     logout();

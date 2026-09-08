@@ -1,5 +1,6 @@
 package com.snd.model;
 
+import com.snd.enums.BatchStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -38,8 +39,9 @@ public class CardBatch {
     @Column(name = "total_face_value", nullable = false, precision = 15, scale = 2)
     private BigDecimal totalFaceValue;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private String status; // AVAILABLE, PARTIALLY_SOLD, EXHAUSTED, EXPIRED
+    private BatchStatus status; // AVAILABLE, PARTIALLY_SOLD, SOLD, EXHAUSTED, EXPIRED, CANCELLED, VOID
 
     @CreationTimestamp
     @Column(name = "generated_at", updatable = false)

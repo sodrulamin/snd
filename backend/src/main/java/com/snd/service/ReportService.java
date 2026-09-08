@@ -2,6 +2,7 @@ package com.snd.service;
 
 import com.snd.dto.ReportDto;
 import com.snd.dto.SalesDto;
+import com.snd.enums.BatchStatus;
 import com.snd.model.CardDenomination;
 import com.snd.model.SalesOrder;
 import com.snd.model.User;
@@ -34,8 +35,8 @@ public class ReportService {
         BigDecimal totalFaceValue = orderRepository.calculateTotalFaceValueSold();
         BigDecimal totalDiscounts = totalFaceValue.subtract(totalRevenue);
         Long totalCardsSold = orderRepository.calculateTotalCardsSold();
-        long totalInStock = rechargeCardRepository.countByStatus("IN_STOCK");
-        long totalBatches = batchRepository.count();
+        long totalInStock = batchRepository.countCardByStatus(BatchStatus.AVAILABLE);//rechargeCardRepository.countByStatus("IN_STOCK");
+        long totalBatches = batchRepository.countDistinctBatch(BatchStatus.AVAILABLE);
         long totalDistributors = userRepository.findByRole("DISTRIBUTOR").size();
 
         List<CardDenomination> activeDenoms = denominationRepository.findByIsActiveTrue();

@@ -1,5 +1,6 @@
 package com.snd.dto;
 
+import com.snd.enums.BatchStatus;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -52,7 +53,7 @@ public class InventoryDto {
         private Integer inStockCount;
         private Integer soldCount;
         private BigDecimal totalFaceValue;
-        private String status;
+        private BatchStatus status;
         private LocalDateTime generatedAt;
         private LocalDate expiryDate;
         private String notes;
