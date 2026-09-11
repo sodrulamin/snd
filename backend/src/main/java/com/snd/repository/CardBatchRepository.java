@@ -41,9 +41,28 @@ public interface CardBatchRepository extends JpaRepository<CardBatch, Long> {
     List<CardBatch> findAllByOrderByGeneratedAtDesc();
 
     @Query("""
+        SELECT DISTINCT cb.batchNumber FROM CardBatch cb 
+        WHERE (:status IS NULL OR cb.status = :status)
+          AND (:denominationIds IS NULL OR cb.denomination.id IN :denominationIds)
+        ORDER BY cb.batchNumber ASC
+    """)
+    List<String> findDistinctBatchNumbersByStatusAndDenominations(
+        @Param("status") BatchStatus status,
+        @Param("denominationIds") List<Long> denominationIds
+    );
+
+    @Query("""
+        SELECT DISTINCT cb.denomination FROM CardBatch cb 
+        WHERE (:status IS NULL OR cb.status = :status)
+        ORDER BY cb.denomination.name ASC
+    """)
+    List<com.snd.model.CardDenomination> findDistinctDenominationsByStatus(@Param("status") BatchStatus status);
+
+    @Query("""
         SELECT cb FROM CardBatch cb 
         WHERE (:status IS NULL OR cb.status = :status)
-          AND (:denominationId IS NULL OR cb.denomination.id = :denominationId)
+          AND (:denominationIds IS NULL OR cb.denomination.id IN :denominationIds)
+          AND (:batchNumbers IS NULL OR cb.batchNumber IN :batchNumbers)
           AND (:search IS NULL OR :search = '' OR 
                LOWER(cb.batchNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR 
                LOWER(cb.startSerialNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR 
@@ -54,7 +73,8 @@ public interface CardBatchRepository extends JpaRepository<CardBatch, Long> {
     """)
     Page<CardBatch> findBatchesFiltered(
         @Param("status") BatchStatus status,
-        @Param("denominationId") Long denominationId,
+        @Param("denominationIds") List<Long> denominationIds,
+        @Param("batchNumbers") List<String> batchNumbers,
         @Param("search") String search,
         Pageable pageable
     );
@@ -62,7 +82,8 @@ public interface CardBatchRepository extends JpaRepository<CardBatch, Long> {
     @Query("""
         SELECT cb FROM CardBatch cb 
         WHERE (:status IS NULL OR cb.status = :status)
-          AND (:denominationId IS NULL OR cb.denomination.id = :denominationId)
+          AND (:denominationIds IS NULL OR cb.denomination.id IN :denominationIds)
+          AND (:batchNumbers IS NULL OR cb.batchNumber IN :batchNumbers)
           AND (:search IS NULL OR :search = '' OR 
                LOWER(cb.batchNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR 
                LOWER(cb.startSerialNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR 
@@ -73,7 +94,8 @@ public interface CardBatchRepository extends JpaRepository<CardBatch, Long> {
     """)
     List<CardBatch> findBatchesFilteredList(
         @Param("status") BatchStatus status,
-        @Param("denominationId") Long denominationId,
+        @Param("denominationIds") List<Long> denominationIds,
+        @Param("batchNumbers") List<String> batchNumbers,
         @Param("search") String search
     );
 }

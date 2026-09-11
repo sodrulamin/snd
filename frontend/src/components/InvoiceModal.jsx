@@ -101,7 +101,7 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-950 print:bg-slate-100 text-slate-400 print:text-slate-700 font-semibold border-b border-slate-800 print:border-slate-300">
                 <tr>
-                  <th className="p-3">#</th>
+                  <th className="p-3 text-center w-12">SL</th>
                   <th className="p-3">Card Denomination</th>
                   <th className="p-3">Serialized Range (From ~ To)</th>
                   <th className="p-3 text-right">Face Value</th>
@@ -113,7 +113,7 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
               <tbody className="divide-y divide-slate-800/60 print:divide-slate-200">
                 {order.items?.map((item, idx) => (
                   <tr key={idx} className="hover:bg-slate-800/30 print:hover:bg-transparent">
-                    <td className="p-3 text-slate-500">{idx + 1}</td>
+                    <td className="p-3 text-center font-mono text-slate-400 text-xs font-semibold">{idx + 1}</td>
                     <td className="p-3 font-medium text-white print:text-black">
                       {item.denominationName}
                       {item.batchNumber && (

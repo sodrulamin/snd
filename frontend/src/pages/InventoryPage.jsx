@@ -20,10 +20,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  Loader2
+  Loader2,
+  CreditCard,
+  X
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import ColumnSelector from '../components/ColumnSelector';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { inventoryService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
@@ -32,17 +35,21 @@ export default function InventoryPage() {
   const navigate = useNavigate();
   const { setPageLoading } = usePageLoading();
   const [denominations, setDenominations] = useState([]);
+  const [availableDenominations, setAvailableDenominations] = useState([]);
+  const [lotNumbers, setLotNumbers] = useState([]);
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Pagination & Search States
+  // Filter States (Multi-select)
+  const [selectedItemIds, setSelectedItemIds] = useState([]);
+  const [selectedLotNumbers, setSelectedLotNumbers] = useState([]);
+
+  // Pagination States
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   const [pageSize, setPageSize] = useState(10);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   const columnDefinitions = [
     { key: 'sl', label: 'SL' },
@@ -159,15 +166,6 @@ export default function InventoryPage() {
 
   const { isAdmin } = useAuth();
 
-  // Debounce search input by 300ms
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-      setCurrentPage(0); // Reset to first page on new search
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
-
   // Load KPI summary
   const loadSummary = async () => {
     try {
@@ -180,7 +178,7 @@ export default function InventoryPage() {
     }
   };
 
-  // Load Denominations for modal
+  // Load Denominations for modal and filter
   const loadDenominations = async () => {
     try {
       const res = await inventoryService.getDenominations();
@@ -200,15 +198,54 @@ export default function InventoryPage() {
     }
   };
 
-  // Load paginated batches
-  const loadBatches = useCallback(async (page = currentPage, search = debouncedSearch, size = pageSize) => {
+  // Load available distinct denominations for filter dropdown (only items present in available inventory)
+  const loadAvailableDenominations = async () => {
+    try {
+      const res = await inventoryService.getAvailableDenominations({ status: 'AVAILABLE' });
+      if (res.data?.success) {
+        setAvailableDenominations(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load available denominations', err);
+    }
+  };
+
+  // Load available distinct lot numbers for filter dropdown (filtered by selected item if any)
+  const loadLotNumbers = useCallback(async (itemIds = selectedItemIds) => {
+    try {
+      const res = await inventoryService.getBatchNumbers({
+        status: 'AVAILABLE',
+        denominationIds: itemIds && itemIds.length > 0 ? itemIds : undefined,
+      });
+      if (res.data?.success) {
+        const availableLots = res.data.data || [];
+        setLotNumbers(availableLots);
+        // Automatically prune any selected lots that are no longer in the adjusted lot list
+        setSelectedLotNumbers((prevSelected) => {
+          const validSelected = prevSelected.filter((lot) => availableLots.includes(lot));
+          return validSelected.length === prevSelected.length ? prevSelected : validSelected;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load batch numbers', err);
+    }
+  }, [selectedItemIds]);
+
+  // Load paginated batches with item multi-select and lot multi-select
+  const loadBatches = useCallback(async (
+    page = currentPage,
+    size = pageSize,
+    itemIds = selectedItemIds,
+    lots = selectedLotNumbers
+  ) => {
     try {
       setLoading(true);
       const res = await inventoryService.getBatches({
         page,
         size,
-        search: search ? search.trim() : undefined,
-        status: 'AVAILABLE'
+        status: 'AVAILABLE',
+        denominationIds: itemIds && itemIds.length > 0 ? itemIds : undefined,
+        batchNumbers: lots && lots.length > 0 ? lots : undefined,
       });
       if (res.data?.success) {
         const pageData = res.data.data;
@@ -222,18 +259,24 @@ export default function InventoryPage() {
       setLoading(false);
       setPageLoading(false);
     }
-  }, [currentPage, debouncedSearch, pageSize, setPageLoading]);
+  }, [currentPage, pageSize, selectedItemIds, selectedLotNumbers, setPageLoading]);
 
   // Initial load
   useEffect(() => {
     loadDenominations();
+    loadAvailableDenominations();
     loadSummary();
   }, []);
 
-  // Fetch batches when page, debounced search, or pageSize changes
+  // When selected items change, adjust available lot numbers
   useEffect(() => {
-    loadBatches(currentPage, debouncedSearch, pageSize);
-  }, [currentPage, debouncedSearch, pageSize, loadBatches]);
+    loadLotNumbers(selectedItemIds);
+  }, [selectedItemIds]);
+
+  // Fetch batches when page, pageSize, or multi-filters change
+  useEffect(() => {
+    loadBatches(currentPage, pageSize, selectedItemIds, selectedLotNumbers);
+  }, [currentPage, pageSize, selectedItemIds, selectedLotNumbers, loadBatches]);
 
   // Calculate quantity and validation status from serial range
   const calculateSerialQuantity = (start, end) => {
@@ -306,8 +349,10 @@ export default function InventoryPage() {
 
       if (res.data?.success) {
         setShowBatchModal(false);
-        loadBatches(0, debouncedSearch);
+        loadBatches(0);
         loadSummary();
+        loadAvailableDenominations();
+        loadLotNumbers();
       }
     } catch (err) {
       setFormError(err.response?.data?.message || 'Failed to add inventory.');
@@ -334,28 +379,31 @@ export default function InventoryPage() {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to delete inventory lot "${batch.batchNumber}" (${batch.startSerialNumber} ~ ${batch.endSerialNumber})?\\n\\nThis will permanently delete all ${batch.quantity} cards from inventory.`)) {
+    if (!window.confirm(`Are you sure you want to delete inventory lot "${batch.batchNumber}" (${batch.startSerialNumber} ~ ${batch.endSerialNumber})?\n\nThis will permanently delete all ${batch.quantity} cards from inventory.`)) {
       return;
     }
 
     try {
       const res = await inventoryService.deleteBatch(batch.id);
       if (res.data?.success) {
-        loadBatches(currentPage, debouncedSearch);
+        loadBatches(currentPage);
         loadSummary();
+        loadAvailableDenominations();
+        loadLotNumbers();
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete inventory lot.');
     }
   };
 
-  // Export ALL matching values for the current search filter
+  // Export ALL matching values for the current filter
   const handleExportCsv = async () => {
     try {
       setIsExporting(true);
       const res = await inventoryService.getAllBatches({
-        search: debouncedSearch ? debouncedSearch.trim() : undefined,
-        status: 'AVAILABLE'
+        status: 'AVAILABLE',
+        denominationIds: selectedItemIds.length > 0 ? selectedItemIds : undefined,
+        batchNumbers: selectedLotNumbers.length > 0 ? selectedLotNumbers : undefined,
       });
 
       const exportBatches = res.data?.data || [];
@@ -497,25 +545,104 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        {/* Search filter toolbar */}
-        <div className="p-3 bg-slate-950/60 border-b border-slate-800 flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input
-              type="text"
-              placeholder="Search available inventory by Lot #, Card Name, Code, or Serial Number..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
-            />
+        {/* Multi-Select Filter Toolbar */}
+        <div className="p-3.5 bg-slate-950/70 border-b border-slate-800 space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Filter 1: Item / Card Product (Multi-select) */}
+            <div className="w-full sm:w-72">
+              <MultiSelectDropdown
+                label="Item"
+                icon={CreditCard}
+                placeholder="All Items"
+                searchPlaceholder="Search card products..."
+                options={availableDenominations.map((d) => ({
+                  value: d.id,
+                  label: d.name,
+                  sublabel: `৳${Number(d.faceValue || d.retailPrice || 0).toFixed(0)}`,
+                }))}
+                selectedValues={selectedItemIds}
+                onChange={(newIds) => {
+                  setSelectedItemIds(newIds);
+                  setCurrentPage(0);
+                }}
+              />
+            </div>
+
+            {/* Filter 2: Lot Number (Multi-select) */}
+            <div className="w-full sm:w-72">
+              <MultiSelectDropdown
+                label="Lot #"
+                icon={Layers}
+                placeholder="All Lots"
+                searchPlaceholder="Search lot numbers..."
+                options={lotNumbers.map((num) => ({
+                  value: num,
+                  label: num,
+                }))}
+                selectedValues={selectedLotNumbers}
+                onChange={(newLots) => {
+                  setSelectedLotNumbers(newLots);
+                  setCurrentPage(0);
+                }}
+              />
+            </div>
+
+            {/* Reset All Filters Button */}
+            {(selectedItemIds.length > 0 || selectedLotNumbers.length > 0) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedItemIds([]);
+                  setSelectedLotNumbers([]);
+                  setCurrentPage(0);
+                }}
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-400 hover:text-teal-300 text-xs font-semibold shrink-0 transition flex items-center justify-center gap-1.5 border border-slate-700/60"
+                title="Reset all active filters"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Reset Filters</span>
+              </button>
+            )}
           </div>
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs font-semibold"
-            >
-              Clear
-            </button>
+
+          {/* Active filter tags */}
+          {(selectedItemIds.length > 0 || selectedLotNumbers.length > 0) && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+              <span className="text-[11px] text-slate-500 font-medium mr-1">Active Filters:</span>
+              {selectedItemIds.map((id) => {
+                const item = denominations.find((d) => d.id === id);
+                return (
+                  <span
+                    key={`item-${id}`}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-teal-500/10 text-teal-300 border border-teal-500/25 text-[11px]"
+                  >
+                    <span>Item: {item?.name || id}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedItemIds((prev) => prev.filter((v) => v !== id))}
+                      className="hover:text-white"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                );
+              })}
+              {selectedLotNumbers.map((lot) => (
+                <span
+                  key={`lot-${lot}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/25 text-[11px]"
+                >
+                  <span className="font-mono">Lot: {lot}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedLotNumbers((prev) => prev.filter((v) => v !== lot))}
+                    className="hover:text-white"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
           )}
         </div>
 
@@ -621,7 +748,9 @@ export default function InventoryPage() {
               {batches.length === 0 && !loading && (
                 <tr>
                   <td colSpan={Object.values(visibleColumns).filter(Boolean).length || 1} className="p-8 text-center text-slate-500">
-                    {debouncedSearch ? 'No available inventory lots match your search query.' : 'No available card inventory found. Click "Add Inventory" to add card stock.'}
+                    {(debouncedSearch || selectedItemIds.length > 0 || selectedLotNumbers.length > 0)
+                      ? 'No available inventory lots match the selected filters or search query.'
+                      : 'No available card inventory found. Click "Add Inventory" to add card stock.'}
                   </td>
                 </tr>
               )}

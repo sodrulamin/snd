@@ -143,7 +143,7 @@ public class InventoryService {
     }
 
     public Page<InventoryDto.BatchSummaryDto> getBatches(
-            Pageable pageable, String statusStr, Long denominationId, String search) {
+            Pageable pageable, String statusStr, List<Long> denominationIds, List<String> batchNumbers, String search) {
         BatchStatus status = null;
         if (statusStr != null && !statusStr.isBlank() && !"ALL".equalsIgnoreCase(statusStr)) {
             try {
@@ -151,12 +151,15 @@ public class InventoryService {
             } catch (IllegalArgumentException ignored) {}
         }
         String cleanSearch = (search != null && !search.isBlank()) ? search.trim() : null;
+        List<Long> cleanDenomIds = (denominationIds != null && !denominationIds.isEmpty()) ? denominationIds : null;
+        List<String> cleanBatchNumbers = (batchNumbers != null && !batchNumbers.isEmpty()) ? batchNumbers : null;
 
-        return batchRepository.findBatchesFiltered(status, denominationId, cleanSearch, pageable)
+        return batchRepository.findBatchesFiltered(status, cleanDenomIds, cleanBatchNumbers, cleanSearch, pageable)
             .map(this::mapToBatchSummary);
     }
 
-    public List<InventoryDto.BatchSummaryDto> getBatchesFilteredList(String statusStr, Long denominationId, String search) {
+    public List<InventoryDto.BatchSummaryDto> getBatchesFilteredList(
+            String statusStr, List<Long> denominationIds, List<String> batchNumbers, String search) {
         BatchStatus status = null;
         if (statusStr != null && !statusStr.isBlank() && !"ALL".equalsIgnoreCase(statusStr)) {
             try {
@@ -164,10 +167,36 @@ public class InventoryService {
             } catch (IllegalArgumentException ignored) {}
         }
         String cleanSearch = (search != null && !search.isBlank()) ? search.trim() : null;
+        List<Long> cleanDenomIds = (denominationIds != null && !denominationIds.isEmpty()) ? denominationIds : null;
+        List<String> cleanBatchNumbers = (batchNumbers != null && !batchNumbers.isEmpty()) ? batchNumbers : null;
 
-        return batchRepository.findBatchesFilteredList(status, denominationId, cleanSearch)
+        return batchRepository.findBatchesFilteredList(status, cleanDenomIds, cleanBatchNumbers, cleanSearch)
             .stream()
             .map(this::mapToBatchSummary)
+            .collect(Collectors.toList());
+    }
+
+    public List<String> getDistinctBatchNumbers(String statusStr, List<Long> denominationIds) {
+        BatchStatus status = null;
+        if (statusStr != null && !statusStr.isBlank() && !"ALL".equalsIgnoreCase(statusStr)) {
+            try {
+                status = BatchStatus.valueOf(statusStr.toUpperCase());
+            } catch (IllegalArgumentException ignored) {}
+        }
+        List<Long> cleanDenomIds = (denominationIds != null && !denominationIds.isEmpty()) ? denominationIds : null;
+        return batchRepository.findDistinctBatchNumbersByStatusAndDenominations(status, cleanDenomIds);
+    }
+
+    public List<InventoryDto.DenominationResponse> getDistinctDenominations(String statusStr) {
+        BatchStatus status = null;
+        if (statusStr != null && !statusStr.isBlank() && !"ALL".equalsIgnoreCase(statusStr)) {
+            try {
+                status = BatchStatus.valueOf(statusStr.toUpperCase());
+            } catch (IllegalArgumentException ignored) {}
+        }
+        return batchRepository.findDistinctDenominationsByStatus(status)
+            .stream()
+            .map(this::mapToDenominationResponse)
             .collect(Collectors.toList());
     }
 

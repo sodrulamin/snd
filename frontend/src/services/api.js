@@ -5,6 +5,9 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  paramsSerializer: {
+    indexes: null, // serializes arrays as key=val1&key=val2 (repeat) instead of key[]=val
+  },
 });
 
 // Request interceptor to attach JWT token
@@ -50,6 +53,8 @@ export const inventoryService = {
   deleteBatch: (id) => api.delete(`/inventory/batches/${id}`),
   getBatches: (params) => api.get('/inventory/batches', { params }),
   getAllBatches: (params) => api.get('/inventory/batches/all', { params }),
+  getBatchNumbers: (params) => api.get('/inventory/batches/numbers', { params }),
+  getAvailableDenominations: (params) => api.get('/inventory/batches/denominations', { params }),
   getInventorySummary: () => api.get('/inventory/batches/summary'),
   getBatchById: (id) => api.get(`/inventory/batches/${id}`),
   generateBatch: (data) => api.post('/inventory/batches/generate', data),

@@ -27,6 +27,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
 
   const columnDefinitions = [
+    { key: 'sl', label: 'SL' },
     { key: 'distributor', label: 'Distributor Partner' },
     { key: 'orders', label: 'Orders Placed' },
     { key: 'cards', label: 'Cards Bought' },
@@ -37,11 +38,15 @@ export default function ReportsPage() {
   const [visibleColumns, setVisibleColumns] = useState(() => {
     try {
       const saved = localStorage.getItem('reports_visible_columns');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { sl: true, ...parsed };
+      }
     } catch (e) {
       // ignore
     }
     return {
+      sl: true,
       distributor: true,
       orders: true,
       cards: true,
@@ -64,6 +69,7 @@ export default function ReportsPage() {
 
   const resetColumns = () => {
     const defaults = {
+      sl: true,
       distributor: true,
       orders: true,
       cards: true,
@@ -222,6 +228,7 @@ export default function ReportsPage() {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
               <tr>
+                {visibleColumns.sl && <th className="p-3 text-center w-12">SL</th>}
                 {visibleColumns.distributor && <th className="p-3">Distributor Partner</th>}
                 {visibleColumns.orders && <th className="p-3 text-center">Orders Placed</th>}
                 {visibleColumns.cards && <th className="p-3 text-center">Cards Bought</th>}
@@ -232,6 +239,11 @@ export default function ReportsPage() {
             <tbody className="divide-y divide-slate-800/60">
               {report?.distributorBreakdown?.map((d, idx) => (
                 <tr key={idx} className="hover:bg-slate-800/30">
+                  {visibleColumns.sl && (
+                    <td className="p-3 text-center font-mono text-slate-400 text-xs font-semibold">
+                      {idx + 1}
+                    </td>
+                  )}
                   {visibleColumns.distributor && <td className="p-3 font-semibold text-white">{d.distributorName}</td>}
                   {visibleColumns.orders && <td className="p-3 text-center text-slate-300">{d.ordersCount}</td>}
                   {visibleColumns.cards && <td className="p-3 text-center font-bold text-teal-400">{d.cardsBought}</td>}

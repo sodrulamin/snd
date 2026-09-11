@@ -60,9 +60,18 @@ public class InventoryController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false, defaultValue = "AVAILABLE") String status,
             @RequestParam(required = false) Long denominationId,
+            @RequestParam(required = false) List<Long> denominationIds,
+            @RequestParam(required = false) List<String> batchNumbers,
             @RequestParam(required = false) String search) {
+        List<Long> mergedDenomIds = new java.util.ArrayList<>();
+        if (denominationIds != null) {
+            mergedDenomIds.addAll(denominationIds);
+        }
+        if (denominationId != null && !mergedDenomIds.contains(denominationId)) {
+            mergedDenomIds.add(denominationId);
+        }
         return ResponseEntity.ok(ApiResponse.success(
-            inventoryService.getBatches(PageRequest.of(page, size), status, denominationId, search)
+            inventoryService.getBatches(PageRequest.of(page, size), status, mergedDenomIds, batchNumbers, search)
         ));
     }
 
@@ -70,10 +79,40 @@ public class InventoryController {
     public ResponseEntity<ApiResponse<List<InventoryDto.BatchSummaryDto>>> getAllBatches(
             @RequestParam(required = false, defaultValue = "AVAILABLE") String status,
             @RequestParam(required = false) Long denominationId,
+            @RequestParam(required = false) List<Long> denominationIds,
+            @RequestParam(required = false) List<String> batchNumbers,
             @RequestParam(required = false) String search) {
+        List<Long> mergedDenomIds = new java.util.ArrayList<>();
+        if (denominationIds != null) {
+            mergedDenomIds.addAll(denominationIds);
+        }
+        if (denominationId != null && !mergedDenomIds.contains(denominationId)) {
+            mergedDenomIds.add(denominationId);
+        }
         return ResponseEntity.ok(ApiResponse.success(
-            inventoryService.getBatchesFilteredList(status, denominationId, search)
+            inventoryService.getBatchesFilteredList(status, mergedDenomIds, batchNumbers, search)
         ));
+    }
+
+    @GetMapping("/batches/numbers")
+    public ResponseEntity<ApiResponse<List<String>>> getBatchNumbers(
+            @RequestParam(required = false, defaultValue = "AVAILABLE") String status,
+            @RequestParam(required = false) Long denominationId,
+            @RequestParam(required = false) List<Long> denominationIds) {
+        List<Long> mergedDenomIds = new java.util.ArrayList<>();
+        if (denominationIds != null) {
+            mergedDenomIds.addAll(denominationIds);
+        }
+        if (denominationId != null && !mergedDenomIds.contains(denominationId)) {
+            mergedDenomIds.add(denominationId);
+        }
+        return ResponseEntity.ok(ApiResponse.success(inventoryService.getDistinctBatchNumbers(status, mergedDenomIds)));
+    }
+
+    @GetMapping("/batches/denominations")
+    public ResponseEntity<ApiResponse<List<InventoryDto.DenominationResponse>>> getBatchDenominations(
+            @RequestParam(required = false, defaultValue = "AVAILABLE") String status) {
+        return ResponseEntity.ok(ApiResponse.success(inventoryService.getDistinctDenominations(status)));
     }
 
     @GetMapping("/batches/summary")

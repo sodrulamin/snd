@@ -65,6 +65,7 @@ export default function SalesPage() {
   const columnSelectorRef = useRef(null);
 
   const columnDefinitions = [
+    { key: 'sl', label: 'SL' },
     { key: 'orderNumber', label: 'Order #' },
     { key: 'distributor', label: 'Distributor' },
     { key: 'date', label: 'Date' },
@@ -85,6 +86,7 @@ export default function SalesPage() {
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
+          sl: true,
           itemCode: true,
           startSerial: true,
           endSerial: true,
@@ -95,6 +97,7 @@ export default function SalesPage() {
       // ignore
     }
     return {
+      sl: true,
       orderNumber: true,
       distributor: true,
       date: true,
@@ -124,6 +127,7 @@ export default function SalesPage() {
 
   const resetColumns = () => {
     const defaultCols = {
+      sl: true,
       orderNumber: true,
       distributor: true,
       date: true,
@@ -841,6 +845,7 @@ export default function SalesPage() {
             <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-slate-950/60 text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-800">
                 <tr>
+                  {visibleColumns.sl && <th className="px-4 py-3 text-center w-12">SL</th>}
                   {visibleColumns.orderNumber && <th className="px-4 py-3">Order #</th>}
                   {visibleColumns.distributor && <th className="px-4 py-3">Distributor</th>}
                   {visibleColumns.date && <th className="px-4 py-3">Date</th>}
@@ -856,8 +861,13 @@ export default function SalesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {orders.map((o) => (
+                {orders.map((o, idx) => (
                   <tr key={o.id} className="hover:bg-slate-800/30 transition">
+                    {visibleColumns.sl && (
+                      <td className="px-4 py-3 text-center font-mono text-slate-400 text-xs font-semibold">
+                        {(currentPage * 15) + idx + 1}
+                      </td>
+                    )}
                     {visibleColumns.orderNumber && (
                       <td className="px-4 py-3 font-mono font-bold text-teal-400">{o.orderNumber}</td>
                     )}

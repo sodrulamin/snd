@@ -78,6 +78,7 @@ export default function DashboardPage() {
 
   // Top Distributors columns
   const topDistributorsColumns = [
+    { key: 'sl', label: 'SL' },
     { key: 'distributor', label: 'Distributor' },
     { key: 'orders', label: 'Orders' },
     { key: 'cards', label: 'Cards Bought' },
@@ -87,11 +88,14 @@ export default function DashboardPage() {
   const [visibleDistColumns, setVisibleDistColumns] = useState(() => {
     try {
       const saved = localStorage.getItem('dash_dist_columns');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { sl: true, ...parsed };
+      }
     } catch (e) {
       // ignore
     }
-    return { distributor: true, orders: true, cards: true, spend: true };
+    return { sl: true, distributor: true, orders: true, cards: true, spend: true };
   });
 
   const toggleDistColumn = (key) => {
@@ -103,13 +107,14 @@ export default function DashboardPage() {
   };
 
   const resetDistColumns = () => {
-    const defaults = { distributor: true, orders: true, cards: true, spend: true };
+    const defaults = { sl: true, distributor: true, orders: true, cards: true, spend: true };
     setVisibleDistColumns(defaults);
     try { localStorage.setItem('dash_dist_columns', JSON.stringify(defaults)); } catch (e) {}
   };
 
   // Recent Orders columns
   const recentOrdersColumns = [
+    { key: 'sl', label: 'SL' },
     { key: 'orderNumber', label: 'Order #' },
     { key: 'distributor', label: 'Distributor' },
     { key: 'cards', label: 'Cards' },
@@ -120,11 +125,14 @@ export default function DashboardPage() {
   const [visibleOrderColumns, setVisibleOrderColumns] = useState(() => {
     try {
       const saved = localStorage.getItem('dash_order_columns');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { sl: true, ...parsed };
+      }
     } catch (e) {
       // ignore
     }
-    return { orderNumber: true, distributor: true, cards: true, amount: true, action: true };
+    return { sl: true, orderNumber: true, distributor: true, cards: true, amount: true, action: true };
   });
 
   const toggleOrderColumn = (key) => {
@@ -136,7 +144,7 @@ export default function DashboardPage() {
   };
 
   const resetOrderColumns = () => {
-    const defaults = { orderNumber: true, distributor: true, cards: true, amount: true, action: true };
+    const defaults = { sl: true, orderNumber: true, distributor: true, cards: true, amount: true, action: true };
     setVisibleOrderColumns(defaults);
     try { localStorage.setItem('dash_order_columns', JSON.stringify(defaults)); } catch (e) {}
   };
@@ -417,6 +425,7 @@ export default function DashboardPage() {
             <table className="w-full text-left text-xs">
               <thead className="text-slate-400 border-b border-slate-800">
                 <tr>
+                  {visibleDistColumns.sl && <th className="pb-2.5 text-center w-12">SL</th>}
                   {visibleDistColumns.distributor && <th className="pb-2.5">Distributor</th>}
                   {visibleDistColumns.orders && <th className="pb-2.5 text-center">Orders</th>}
                   {visibleDistColumns.cards && <th className="pb-2.5 text-center">Cards Bought</th>}
@@ -426,12 +435,14 @@ export default function DashboardPage() {
               <tbody className="divide-y divide-slate-800/60">
                 {summary?.topDistributors?.slice(0, 5).map((dist, idx) => (
                   <tr key={idx} className="hover:bg-slate-800/30">
+                    {visibleDistColumns.sl && (
+                      <td className="py-3 text-center font-mono text-slate-400 text-xs font-semibold">
+                        {idx + 1}
+                      </td>
+                    )}
                     {visibleDistColumns.distributor && (
-                      <td className="py-3 font-semibold text-white flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-slate-800 text-teal-400 flex items-center justify-center text-[10px] font-bold">
-                          {idx + 1}
-                        </span>
-                        <span className="truncate max-w-[160px]">{dist.distributorName}</span>
+                      <td className="py-3 font-semibold text-white">
+                        <span className="truncate max-w-[160px] inline-block">{dist.distributorName}</span>
                       </td>
                     )}
                     {visibleDistColumns.orders && <td className="py-3 text-center text-slate-400">{dist.ordersCount}</td>}
@@ -479,6 +490,7 @@ export default function DashboardPage() {
             <table className="w-full text-left text-xs">
               <thead className="text-slate-400 border-b border-slate-800">
                 <tr>
+                  {visibleOrderColumns.sl && <th className="pb-2.5 text-center w-12">SL</th>}
                   {visibleOrderColumns.orderNumber && <th className="pb-2.5">Order #</th>}
                   {visibleOrderColumns.distributor && <th className="pb-2.5">Distributor</th>}
                   {visibleOrderColumns.cards && <th className="pb-2.5 text-center">Cards</th>}
@@ -489,6 +501,11 @@ export default function DashboardPage() {
               <tbody className="divide-y divide-slate-800/60">
                 {summary?.recentOrders?.map((order, idx) => (
                   <tr key={idx} className="hover:bg-slate-800/30">
+                    {visibleOrderColumns.sl && (
+                      <td className="py-3 text-center font-mono text-slate-400 text-xs font-semibold">
+                        {idx + 1}
+                      </td>
+                    )}
                     {visibleOrderColumns.orderNumber && <td className="py-3 font-mono font-semibold text-teal-300">{order.orderNumber}</td>}
                     {visibleOrderColumns.distributor && <td className="py-3 text-slate-300 truncate max-w-[130px]">{order.distributorName}</td>}
                     {visibleOrderColumns.cards && <td className="py-3 text-center font-bold text-white">{order.totalCardsCount}</td>}

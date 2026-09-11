@@ -536,6 +536,7 @@ export default function DistributorsPage() {
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-950 text-slate-400 font-semibold sticky top-0">
                   <tr>
+                    <th className="p-2.5 text-center w-10">SL</th>
                     <th className="p-2.5">Date</th>
                     <th className="p-2.5">Type</th>
                     <th className="p-2.5 text-right">Amount</th>
@@ -545,8 +546,11 @@ export default function DistributorsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {transactions.map((t) => (
+                  {transactions.map((t, idx) => (
                     <tr key={t.id} className="hover:bg-slate-800/30">
+                      <td className="p-2.5 text-center text-slate-500 font-mono text-[11px] font-semibold">
+                        {idx + 1}
+                      </td>
                       <td className="p-2.5 text-slate-400 font-mono text-[11px]">
                         {new Date(t.createdAt).toLocaleDateString()} {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
@@ -567,7 +571,7 @@ export default function DistributorsPage() {
                   ))}
                   {transactions.length === 0 && (
                     <tr>
-                      <td colSpan="6" className="p-6 text-center text-slate-500">No ledger entries for this distributor yet.</td>
+                      <td colSpan="7" className="p-6 text-center text-slate-500">No ledger entries for this distributor yet.</td>
                     </tr>
                   )}
                 </tbody>
