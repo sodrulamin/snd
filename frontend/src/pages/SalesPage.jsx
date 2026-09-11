@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import {
@@ -17,7 +17,9 @@ import {
   Search,
   X,
   RotateCcw,
-  Filter
+  Filter,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import InvoiceModal from '../components/InvoiceModal';
@@ -31,6 +33,8 @@ export default function SalesPage() {
   const { setPageLoading } = usePageLoading();
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const startDateRef = useRef(null);
+  const endDateRef = useRef(null);
   const [orders, setOrders] = useState([]);
   const [distributors, setDistributors] = useState([]);
   const [denominations, setDenominations] = useState([]);
@@ -44,9 +48,16 @@ export default function SalesPage() {
   const [filterDistributorId, setFilterDistributorId] = useState('');
   const [filterPaymentMethod, setFilterPaymentMethod] = useState('');
   const [filterOrderStatus, setFilterOrderStatus] = useState('');
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [filterEndDate, setFilterEndDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
 
+  const [showFilters, setShowFilters] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
@@ -182,7 +193,12 @@ export default function SalesPage() {
     try {
       setLoading(true);
       const [ordersRes, distsRes, denomsRes, batchesRes] = await Promise.all([
-        salesService.getOrders({ page, size: 15 }),
+        salesService.getOrders({
+          page,
+          size: 15,
+          startDate: filterStartDate ? filterStartDate + 'T00:00:00' : undefined,
+          endDate: filterEndDate ? filterEndDate + 'T23:59:59' : undefined,
+        }),
         distributorService.getAll(),
         inventoryService.getActiveDenominations(),
         inventoryService.getAllBatches(),
@@ -230,12 +246,15 @@ export default function SalesPage() {
   };
 
   const handleResetFilters = () => {
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     setSearchQuery('');
     setFilterDistributorId('');
     setFilterPaymentMethod('');
     setFilterOrderStatus('');
-    setFilterStartDate('');
-    setFilterEndDate('');
+    setFilterStartDate(monthStart);
+    setFilterEndDate(today);
     fetchOrders(0, {});
   };
 
@@ -428,32 +447,32 @@ export default function SalesPage() {
       {/* Sales Summary KPI Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Total Net Sales"
-          value={`৳${totalNetRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          subtext={`Retail Value: ৳${totalGrossValue.toFixed(2)}`}
-          icon={DollarSign}
-          color="teal"
+          title="Total Orders"
+          value={totalOrdersCount.toString()}
+          subtext="Wholesale order invoices"
+          icon={CheckCircle2}
+          color="sky"
         />
         <StatCard
-          title="Cards Dispatched"
+          title="Cards Distributed"
           value={totalCardsSold.toLocaleString()}
           subtext="Total units delivered"
           icon={ShoppingCart}
           color="emerald"
         />
         <StatCard
-          title="Total Orders"
-          value={totalOrdersCount.toString()}
-          subtext="Wholesale order invoices"
-          icon={CheckCircle2}
-          color="blue"
-        />
-        <StatCard
-          title="Distributor Discounts"
+          title="Discounted Amount"
           value={`৳${totalDiscounts.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           subtext="Promotional deductions"
           icon={Layers}
           color="violet"
+        />
+        <StatCard
+          title="Net Sales"
+          value={`৳${totalNetRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          subtext={`Retail Value: ৳${totalGrossValue.toFixed(2)}`}
+          icon={DollarSign}
+          color="amber"
         />
       </div>
 
@@ -461,22 +480,41 @@ export default function SalesPage() {
       <div className="p-6 rounded-2xl bg-slate-900/50 border border-slate-800 space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-white tracking-wide">Wholesale Orders & Invoices</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Manage, search, and filter distributor wholesale card bulk purchases</p>
+            <h2 className="text-lg font-bold text-white tracking-wide">Sales & Invoices</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Manage, search, and filter Sales Details</p>
           </div>
 
-          {isAdmin && (
+          <div className="flex items-center gap-2.5">
             <button
-              onClick={handleOpenOrderModal}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 text-xs font-bold hover:from-teal-300 hover:to-emerald-300 transition shadow-lg shadow-teal-500/20 flex items-center gap-2"
+              onClick={() => setShowFilters(prev => !prev)}
+              className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition border ${
+                showFilters || searchQuery || filterDistributorId || filterPaymentMethod || filterOrderStatus
+                  ? 'bg-teal-500/15 border-teal-500/30 text-teal-300'
+                  : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:text-white hover:bg-slate-700/80'
+              }`}
             >
-              <Plus className="w-4 h-4" /> New Sales Order
+              <Filter className="w-3.5 h-3.5" />
+              <span>Filters</span>
+              {(searchQuery || filterDistributorId || filterPaymentMethod || filterOrderStatus) && (
+                <span className="w-2 h-2 rounded-full bg-teal-400 ml-0.5 animate-pulse" />
+              )}
+              {showFilters ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
-          )}
+
+            {isAdmin && (
+              <button
+                onClick={handleOpenOrderModal}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 text-xs font-bold hover:from-teal-300 hover:to-emerald-300 transition shadow-lg shadow-teal-500/20 flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" /> New Sales
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Search & Filter Bar */}
-        <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3">
+        {/* Search & Filter Bar (Collapsible) */}
+        {showFilters && (
+          <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3 animate-fadeIn">
           <form onSubmit={handleApplyFilters} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3">
             {/* Search Keyword */}
             <div className="lg:col-span-5 relative">
@@ -557,41 +595,67 @@ export default function SalesPage() {
               <Calendar className="w-3.5 h-3.5 text-teal-400" />
               <span>Date Filter:</span>
             </div>
-            <input
-              type="date"
-              value={filterStartDate}
-              onChange={(e) => setFilterStartDate(e.target.value)}
-              className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-teal-500"
-            />
+            {/* Start Date */}
+            <div
+              onClick={() => { startDateRef.current?.showPicker?.(); startDateRef.current?.click(); }}
+              className="relative bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 w-32 focus-within:border-teal-500 cursor-pointer flex items-center gap-1.5 select-none"
+            >
+              <Calendar className="w-3 h-3 text-slate-500 flex-shrink-0" />
+              <span className="text-xs font-mono text-white flex-1 leading-none pointer-events-none">
+                {filterStartDate ? filterStartDate.split('-').reverse().join('-') : <span className="text-slate-500">dd-MM-YYYY</span>}
+              </span>
+              <input
+                ref={startDateRef}
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => setFilterStartDate(e.target.value)}
+                className="sr-only"
+              />
+            </div>
             <span>to</span>
-            <input
-              type="date"
-              value={filterEndDate}
-              onChange={(e) => setFilterEndDate(e.target.value)}
-              className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-teal-500"
-            />
+            {/* End Date */}
+            <div
+              onClick={() => { endDateRef.current?.showPicker?.(); endDateRef.current?.click(); }}
+              className="relative bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 w-32 focus-within:border-teal-500 cursor-pointer flex items-center gap-1.5 select-none"
+            >
+              <Calendar className="w-3 h-3 text-slate-500 flex-shrink-0" />
+              <span className="text-xs font-mono text-white flex-1 leading-none pointer-events-none">
+                {filterEndDate ? filterEndDate.split('-').reverse().join('-') : <span className="text-slate-500">dd-MM-YYYY</span>}
+              </span>
+              <input
+                ref={endDateRef}
+                type="date"
+                value={filterEndDate}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+                className="sr-only"
+              />
+            </div>
             {(filterStartDate || filterEndDate) && (
               <button
                 type="button"
                 onClick={() => {
-                  setFilterStartDate('');
-                  setFilterEndDate('');
+                  const now = new Date();
+                  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+                  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                  setFilterStartDate(monthStart);
+                  setFilterEndDate(today);
                   fetchOrders(0, {
                     search: searchQuery || undefined,
                     distributorId: filterDistributorId || undefined,
                     paymentMethod: filterPaymentMethod || undefined,
                     status: filterOrderStatus || undefined,
-                    startDate: undefined,
-                    endDate: undefined,
+                    startDate: monthStart,
+                    endDate: today,
                   });
                 }}
                 className="text-xs text-teal-400 hover:underline"
               >
-                Clear Dates
+                Reset Dates
               </button>
             )}
           </div>
         </div>
+        )}
 
         {loading ? (
           <div className="py-12 flex justify-center">
@@ -628,7 +692,7 @@ export default function SalesPage() {
                       <div className="text-[10px] text-slate-500">{o.distributorPhone || o.distributorEmail}</div>
                     </td>
                     <td className="px-4 py-3 text-slate-400">
-                      {o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                      {o.createdAt ? (() => { const d = new Date(o.createdAt); return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`; })() : '-'}
                     </td>
                     <td className="px-4 py-3 font-semibold text-white">{o.totalCardsCount?.toLocaleString()}</td>
                     <td className="px-4 py-3 font-mono text-slate-300">৳{Number(o.totalFaceValue || 0).toFixed(2)}</td>
