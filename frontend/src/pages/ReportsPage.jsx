@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Header';
 import StatCard from '../components/StatCard';
+import ColumnSelector from '../components/ColumnSelector';
 import { reportService } from '../services/api';
 import { usePageLoading } from '../context/PageLoadingContext';
 
@@ -24,6 +25,58 @@ export default function ReportsPage() {
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
+
+  const columnDefinitions = [
+    { key: 'distributor', label: 'Distributor Partner' },
+    { key: 'orders', label: 'Orders Placed' },
+    { key: 'cards', label: 'Cards Bought' },
+    { key: 'spend', label: 'Total Net Spend' },
+    { key: 'balance', label: 'Current Balance' },
+  ];
+
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    try {
+      const saved = localStorage.getItem('reports_visible_columns');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      // ignore
+    }
+    return {
+      distributor: true,
+      orders: true,
+      cards: true,
+      spend: true,
+      balance: true,
+    };
+  });
+
+  const toggleColumn = (key) => {
+    setVisibleColumns((prev) => {
+      const updated = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem('reports_visible_columns', JSON.stringify(updated));
+      } catch (e) {
+        // ignore
+      }
+      return updated;
+    });
+  };
+
+  const resetColumns = () => {
+    const defaults = {
+      distributor: true,
+      orders: true,
+      cards: true,
+      spend: true,
+      balance: true,
+    };
+    setVisibleColumns(defaults);
+    try {
+      localStorage.setItem('reports_visible_columns', JSON.stringify(defaults));
+    } catch (e) {
+      // ignore
+    }
+  };
 
   const fetchReport = async () => {
     try {
@@ -152,33 +205,43 @@ export default function ReportsPage() {
 
       {/* Breakdown by Distributor */}
       <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800">
-        <h3 className="text-base font-bold text-white mb-1">Partner Revenue Contribution</h3>
-        <p className="text-xs text-slate-400 mb-4">Breakdown of purchases and active wallet balances per distributor</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div>
+            <h3 className="text-base font-bold text-white mb-0.5">Partner Revenue Contribution</h3>
+            <p className="text-xs text-slate-400">Breakdown of purchases and active wallet balances per distributor</p>
+          </div>
+          <ColumnSelector
+            columns={columnDefinitions}
+            visibleColumns={visibleColumns}
+            onToggleColumn={toggleColumn}
+            onResetColumns={resetColumns}
+          />
+        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
               <tr>
-                <th className="p-3">Distributor Partner</th>
-                <th className="p-3 text-center">Orders Placed</th>
-                <th className="p-3 text-center">Cards Bought</th>
-                <th className="p-3 text-right">Total Net Spend</th>
-                <th className="p-3 text-right">Current Balance</th>
+                {visibleColumns.distributor && <th className="p-3">Distributor Partner</th>}
+                {visibleColumns.orders && <th className="p-3 text-center">Orders Placed</th>}
+                {visibleColumns.cards && <th className="p-3 text-center">Cards Bought</th>}
+                {visibleColumns.spend && <th className="p-3 text-right">Total Net Spend</th>}
+                {visibleColumns.balance && <th className="p-3 text-right">Current Balance</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {report?.distributorBreakdown?.map((d, idx) => (
                 <tr key={idx} className="hover:bg-slate-800/30">
-                  <td className="p-3 font-semibold text-white">{d.distributorName}</td>
-                  <td className="p-3 text-center text-slate-300">{d.ordersCount}</td>
-                  <td className="p-3 text-center font-bold text-teal-400">{d.cardsBought}</td>
-                  <td className="p-3 text-right font-mono font-bold text-emerald-400">৳{Number(d.totalSpend).toFixed(2)}</td>
-                  <td className="p-3 text-right font-mono text-slate-300">৳{Number(d.currentBalance).toFixed(2)}</td>
+                  {visibleColumns.distributor && <td className="p-3 font-semibold text-white">{d.distributorName}</td>}
+                  {visibleColumns.orders && <td className="p-3 text-center text-slate-300">{d.ordersCount}</td>}
+                  {visibleColumns.cards && <td className="p-3 text-center font-bold text-teal-400">{d.cardsBought}</td>}
+                  {visibleColumns.spend && <td className="p-3 text-right font-mono font-bold text-emerald-400">৳{Number(d.totalSpend).toFixed(2)}</td>}
+                  {visibleColumns.balance && <td className="p-3 text-right font-mono text-slate-300">৳{Number(d.currentBalance).toFixed(2)}</td>}
                 </tr>
               ))}
               {(!report?.distributorBreakdown || report.distributorBreakdown.length === 0) && (
                 <tr>
-                  <td colSpan="5" className="p-6 text-center text-slate-500">No partner activity recorded in this period.</td>
+                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length || 1} className="p-6 text-center text-slate-500">No partner activity recorded in this period.</td>
                 </tr>
               )}
             </tbody>

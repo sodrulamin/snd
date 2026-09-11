@@ -19,10 +19,13 @@ import {
   RotateCcw,
   Filter,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Columns3,
+  Check
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import InvoiceModal from '../components/InvoiceModal';
+import ColumnSelector from '../components/ColumnSelector';
 import SearchableDistributorSelect from '../components/SearchableDistributorSelect';
 import SearchableProductSelect from '../components/SearchableProductSelect';
 import { salesService, distributorService, inventoryService } from '../services/api';
@@ -58,6 +61,84 @@ export default function SalesPage() {
   });
 
   const [showFilters, setShowFilters] = useState(false);
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
+  const columnSelectorRef = useRef(null);
+
+  const columnDefinitions = [
+    { key: 'orderNumber', label: 'Order #' },
+    { key: 'distributor', label: 'Distributor' },
+    { key: 'date', label: 'Date' },
+    { key: 'units', label: 'Units' },
+    { key: 'gross', label: 'Gross' },
+    { key: 'discount', label: 'Discount' },
+    { key: 'netTotal', label: 'Net Total' },
+    { key: 'payment', label: 'Payment' },
+    { key: 'actions', label: 'Actions' },
+  ];
+
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sales_visible_columns');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      // ignore
+    }
+    return {
+      orderNumber: true,
+      distributor: true,
+      date: true,
+      units: true,
+      gross: true,
+      discount: true,
+      netTotal: true,
+      payment: true,
+      actions: true,
+    };
+  });
+
+  const toggleColumn = (key) => {
+    setVisibleColumns((prev) => {
+      const updated = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem('sales_visible_columns', JSON.stringify(updated));
+      } catch (e) {
+        // ignore
+      }
+      return updated;
+    });
+  };
+
+  const resetColumns = () => {
+    const defaultCols = {
+      orderNumber: true,
+      distributor: true,
+      date: true,
+      units: true,
+      gross: true,
+      discount: true,
+      netTotal: true,
+      payment: true,
+      actions: true,
+    };
+    setVisibleColumns(defaultCols);
+    try {
+      localStorage.setItem('sales_visible_columns', JSON.stringify(defaultCols));
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  // Close column selector dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (columnSelectorRef.current && !columnSelectorRef.current.contains(event.target)) {
+        setShowColumnSelector(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
@@ -485,6 +566,14 @@ export default function SalesPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            {/* Column Selector Dropdown */}
+            <ColumnSelector
+              columns={columnDefinitions}
+              visibleColumns={visibleColumns}
+              onToggleColumn={toggleColumn}
+              onResetColumns={resetColumns}
+            />
+
             <button
               onClick={() => setShowFilters(prev => !prev)}
               className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition border ${
@@ -672,51 +761,69 @@ export default function SalesPage() {
             <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-slate-950/60 text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-800">
                 <tr>
-                  <th className="px-4 py-3">Order #</th>
-                  <th className="px-4 py-3">Distributor</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Units</th>
-                  <th className="px-4 py-3">Gross</th>
-                  <th className="px-4 py-3">Discount</th>
-                  <th className="px-4 py-3">Net Total</th>
-                  <th className="px-4 py-3">Payment</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  {visibleColumns.orderNumber && <th className="px-4 py-3">Order #</th>}
+                  {visibleColumns.distributor && <th className="px-4 py-3">Distributor</th>}
+                  {visibleColumns.date && <th className="px-4 py-3">Date</th>}
+                  {visibleColumns.units && <th className="px-4 py-3">Units</th>}
+                  {visibleColumns.gross && <th className="px-4 py-3">Gross</th>}
+                  {visibleColumns.discount && <th className="px-4 py-3">Discount</th>}
+                  {visibleColumns.netTotal && <th className="px-4 py-3">Net Total</th>}
+                  {visibleColumns.payment && <th className="px-4 py-3">Payment</th>}
+                  {visibleColumns.actions && <th className="px-4 py-3 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
                 {orders.map((o) => (
                   <tr key={o.id} className="hover:bg-slate-800/30 transition">
-                    <td className="px-4 py-3 font-mono font-bold text-teal-400">{o.orderNumber}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-white">{o.distributorName}</div>
-                      <div className="text-[10px] text-slate-500">{o.distributorPhone || o.distributorEmail}</div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-400">
-                      {o.createdAt ? (() => { const d = new Date(o.createdAt); return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`; })() : '-'}
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-white">{o.totalCardsCount?.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-mono text-slate-300">৳{Number(o.totalFaceValue || 0).toFixed(2)}</td>
-                    <td className="px-4 py-3 font-mono text-emerald-400">
-                      {Number(o.discountAmount || 0) > 0 ? `-৳${Number(o.discountAmount).toFixed(2)}` : '৳0.00'}
-                    </td>
-                    <td className="px-4 py-3 font-mono font-bold text-teal-300">৳{Number(o.finalAmount || 0).toFixed(2)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        o.paymentMethod === 'BALANCE_CREDIT'
-                          ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
-                          : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                      }`}>
-                        {o.paymentMethod?.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleViewInvoice(o.id)}
-                        className="px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 hover:bg-teal-500/20 border border-teal-500/30 text-xs font-semibold flex items-center gap-1.5 ml-auto transition"
-                      >
-                        <Eye className="w-3.5 h-3.5" /> Invoice
-                      </button>
-                    </td>
+                    {visibleColumns.orderNumber && (
+                      <td className="px-4 py-3 font-mono font-bold text-teal-400">{o.orderNumber}</td>
+                    )}
+                    {visibleColumns.distributor && (
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-white">{o.distributorName}</div>
+                        <div className="text-[10px] text-slate-500">{o.distributorPhone || o.distributorEmail}</div>
+                      </td>
+                    )}
+                    {visibleColumns.date && (
+                      <td className="px-4 py-3 text-slate-400">
+                        {o.createdAt ? (() => { const d = new Date(o.createdAt); return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`; })() : '-'}
+                      </td>
+                    )}
+                    {visibleColumns.units && (
+                      <td className="px-4 py-3 font-semibold text-white">{o.totalCardsCount?.toLocaleString()}</td>
+                    )}
+                    {visibleColumns.gross && (
+                      <td className="px-4 py-3 font-mono text-slate-300">৳{Number(o.totalFaceValue || 0).toFixed(2)}</td>
+                    )}
+                    {visibleColumns.discount && (
+                      <td className="px-4 py-3 font-mono text-emerald-400">
+                        {Number(o.discountAmount || 0) > 0 ? `-৳${Number(o.discountAmount).toFixed(2)}` : '৳0.00'}
+                      </td>
+                    )}
+                    {visibleColumns.netTotal && (
+                      <td className="px-4 py-3 font-mono font-bold text-teal-300">৳{Number(o.finalAmount || 0).toFixed(2)}</td>
+                    )}
+                    {visibleColumns.payment && (
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                          o.paymentMethod === 'BALANCE_CREDIT'
+                            ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
+                            : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                        }`}>
+                          {o.paymentMethod?.replace('_', ' ')}
+                        </span>
+                      </td>
+                    )}
+                    {visibleColumns.actions && (
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => handleViewInvoice(o.id)}
+                          className="px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 hover:bg-teal-500/20 border border-teal-500/30 text-xs font-semibold flex items-center gap-1.5 ml-auto transition"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> Invoice
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

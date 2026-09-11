@@ -23,6 +23,7 @@ import {
   Loader2
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
+import ColumnSelector from '../components/ColumnSelector';
 import { inventoryService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
@@ -42,6 +43,76 @@ export default function InventoryPage() {
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  const columnDefinitions = [
+    { key: 'sl', label: 'SL' },
+    { key: 'lot', label: 'Inventory Lot #' },
+    { key: 'code', label: 'Code' },
+    { key: 'name', label: 'Name' },
+    { key: 'startSerial', label: 'Start Serial' },
+    { key: 'endSerial', label: 'End Serial' },
+    { key: 'quantity', label: 'Quantity' },
+    { key: 'wholesale', label: 'Wholesale' },
+    { key: 'retail', label: 'Retail' },
+    { key: 'addedTime', label: 'Added Time' },
+    { key: 'actions', label: 'Actions' },
+  ];
+
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    try {
+      const saved = localStorage.getItem('inventory_visible_columns');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      // ignore
+    }
+    return {
+      sl: true,
+      lot: true,
+      code: true,
+      name: true,
+      startSerial: true,
+      endSerial: true,
+      quantity: true,
+      wholesale: true,
+      retail: true,
+      addedTime: true,
+      actions: true,
+    };
+  });
+
+  const toggleColumn = (key) => {
+    setVisibleColumns((prev) => {
+      const updated = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem('inventory_visible_columns', JSON.stringify(updated));
+      } catch (e) {
+        // ignore
+      }
+      return updated;
+    });
+  };
+
+  const resetColumns = () => {
+    const defaults = {
+      sl: true,
+      lot: true,
+      code: true,
+      name: true,
+      startSerial: true,
+      endSerial: true,
+      quantity: true,
+      wholesale: true,
+      retail: true,
+      addedTime: true,
+      actions: true,
+    };
+    setVisibleColumns(defaults);
+    try {
+      localStorage.setItem('inventory_visible_columns', JSON.stringify(defaults));
+    } catch (e) {
+      // ignore
+    }
+  };
 
   // Summary KPI Stats (aggregated across entire available stock)
   const [summaryStats, setSummaryStats] = useState({
@@ -395,6 +466,13 @@ export default function InventoryPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            <ColumnSelector
+              columns={columnDefinitions}
+              visibleColumns={visibleColumns}
+              onToggleColumn={toggleColumn}
+              onResetColumns={resetColumns}
+            />
+
             <button
               onClick={handleExportCsv}
               disabled={isExporting}
@@ -445,82 +523,104 @@ export default function InventoryPage() {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
               <tr>
-                <th className="p-3.5 text-center w-12">SL</th>
-                <th className="p-3.5">Inventory Lot #</th>
-                <th className="p-3.5">Code</th>
-                <th className="p-3.5">Name</th>
-                <th className="p-3.5">Start Serial</th>
-                <th className="p-3.5">End Serial</th>
-                <th className="p-3.5 text-center">Quantity</th>
-                <th className="p-3.5 text-right">Wholesale</th>
-                <th className="p-3.5 text-right">Retail</th>
-                <th className="p-3.5 text-center">Added Time</th>
-                <th className="p-3.5 text-center">Actions</th>
+                {visibleColumns.sl && <th className="p-3.5 text-center w-12">SL</th>}
+                {visibleColumns.lot && <th className="p-3.5">Inventory Lot #</th>}
+                {visibleColumns.code && <th className="p-3.5">Code</th>}
+                {visibleColumns.name && <th className="p-3.5">Name</th>}
+                {visibleColumns.startSerial && <th className="p-3.5">Start Serial</th>}
+                {visibleColumns.endSerial && <th className="p-3.5">End Serial</th>}
+                {visibleColumns.quantity && <th className="p-3.5 text-center">Quantity</th>}
+                {visibleColumns.wholesale && <th className="p-3.5 text-right">Wholesale</th>}
+                {visibleColumns.retail && <th className="p-3.5 text-right">Retail</th>}
+                {visibleColumns.addedTime && <th className="p-3.5 text-center">Added Time</th>}
+                {visibleColumns.actions && <th className="p-3.5 text-center">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {batches.map((b, idx) => (
                 <tr key={b.id} className="hover:bg-slate-800/30 transition">
-                  <td className="p-3.5 text-center font-mono text-slate-400">
-                    {(currentPage * pageSize) + idx + 1}
-                  </td>
-                  <td className="p-3.5 font-mono font-semibold text-white">
-                    {b.batchNumber}
-                  </td>
-                  <td className="p-3.5">
-                    <span className="px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 font-mono text-[10px] font-bold border border-teal-500/20">
-                      {b.denominationCode || 'IPTSP'}
-                    </span>
-                  </td>
-                  <td className="p-3.5">
-                    <span className="font-semibold text-white">{b.denominationName}</span>
-                    <span className="text-teal-400 font-mono text-[11px] ml-1.5">(৳{Number(b.faceValue).toFixed(0)})</span>
-                  </td>
-                  <td className="p-3.5 font-mono text-slate-300 font-medium">
-                    {b.startSerialNumber || 'N/A'}
-                  </td>
-                  <td className="p-3.5 font-mono text-slate-300 font-medium">
-                    {b.endSerialNumber || 'N/A'}
-                  </td>
-                  <td className="p-3.5 text-center font-bold text-teal-300">
-                    <span className="px-2 py-0.5 rounded bg-teal-500/10 border border-teal-500/20">
-                      {b.inStockCount != null ? b.inStockCount : b.quantity}
-                    </span>
-                  </td>
-                  <td className="p-3.5 text-right font-mono font-bold text-teal-400">
-                    ৳{(Number(b.wholesalePrice || b.faceValue || 0) * (b.inStockCount != null ? b.inStockCount : b.quantity || 0)).toFixed(2)}
-                  </td>
-                  <td className="p-3.5 text-right font-mono font-semibold text-slate-200">
-                    ৳{(Number(b.faceValue || b.retailPrice || 0) * (b.inStockCount != null ? b.inStockCount : b.quantity || 0)).toFixed(2)}
-                  </td>
-                  <td className="p-3.5 text-center text-slate-300 font-mono text-[11px]">
-                    {formatDateYMDHM(b.generatedAt)}
-                  </td>
-                  <td className="p-3.5 text-center">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <button
-                        onClick={() => handleSellBatch(b)}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-teal-500/20 text-slate-400 hover:text-teal-300 border border-slate-700 hover:border-teal-500/30 transition shadow-sm"
-                        title={`Sell Lot ${b.batchNumber} (Create Wholesale Order)`}
-                      >
-                        <ShoppingCart className="w-4 h-4 text-teal-400" />
-                      </button>
-                      {isAdmin && (
+                  {visibleColumns.sl && (
+                    <td className="p-3.5 text-center font-mono text-slate-400">
+                      {(currentPage * pageSize) + idx + 1}
+                    </td>
+                  )}
+                  {visibleColumns.lot && (
+                    <td className="p-3.5 font-mono font-semibold text-white">
+                      {b.batchNumber}
+                    </td>
+                  )}
+                  {visibleColumns.code && (
+                    <td className="p-3.5">
+                      <span className="px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 font-mono text-[10px] font-bold border border-teal-500/20">
+                        {b.denominationCode || 'IPTSP'}
+                      </span>
+                    </td>
+                  )}
+                  {visibleColumns.name && (
+                    <td className="p-3.5">
+                      <span className="font-semibold text-white">{b.denominationName}</span>
+                      <span className="text-teal-400 font-mono text-[11px] ml-1.5">(৳{Number(b.faceValue).toFixed(0)})</span>
+                    </td>
+                  )}
+                  {visibleColumns.startSerial && (
+                    <td className="p-3.5 font-mono text-slate-300 font-medium">
+                      {b.startSerialNumber || 'N/A'}
+                    </td>
+                  )}
+                  {visibleColumns.endSerial && (
+                    <td className="p-3.5 font-mono text-slate-300 font-medium">
+                      {b.endSerialNumber || 'N/A'}
+                    </td>
+                  )}
+                  {visibleColumns.quantity && (
+                    <td className="p-3.5 text-center font-bold text-teal-300">
+                      <span className="px-2 py-0.5 rounded bg-teal-500/10 border border-teal-500/20">
+                        {b.inStockCount != null ? b.inStockCount : b.quantity}
+                      </span>
+                    </td>
+                  )}
+                  {visibleColumns.wholesale && (
+                    <td className="p-3.5 text-right font-mono font-bold text-teal-400">
+                      ৳{(Number(b.wholesalePrice || b.faceValue || 0) * (b.inStockCount != null ? b.inStockCount : b.quantity || 0)).toFixed(2)}
+                    </td>
+                  )}
+                  {visibleColumns.retail && (
+                    <td className="p-3.5 text-right font-mono font-semibold text-slate-200">
+                      ৳{(Number(b.faceValue || b.retailPrice || 0) * (b.inStockCount != null ? b.inStockCount : b.quantity || 0)).toFixed(2)}
+                    </td>
+                  )}
+                  {visibleColumns.addedTime && (
+                    <td className="p-3.5 text-center text-slate-300 font-mono text-[11px]">
+                      {formatDateYMDHM(b.generatedAt)}
+                    </td>
+                  )}
+                  {visibleColumns.actions && (
+                    <td className="p-3.5 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
-                          onClick={() => handleDeleteBatch(b)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/30 transition shadow-sm"
-                          title="Delete Inventory Lot"
+                          onClick={() => handleSellBatch(b)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-teal-500/20 text-slate-400 hover:text-teal-300 border border-slate-700 hover:border-teal-500/30 transition shadow-sm"
+                          title={`Sell Lot ${b.batchNumber} (Create Wholesale Order)`}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <ShoppingCart className="w-4 h-4 text-teal-400" />
                         </button>
-                      )}
-                    </div>
-                  </td>
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleDeleteBatch(b)}
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/30 transition shadow-sm"
+                            title="Delete Inventory Lot"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {batches.length === 0 && !loading && (
                 <tr>
-                  <td colSpan="11" className="p-8 text-center text-slate-500">
+                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length || 1} className="p-8 text-center text-slate-500">
                     {debouncedSearch ? 'No available inventory lots match your search query.' : 'No available card inventory found. Click "Add Inventory" to add card stock.'}
                   </td>
                 </tr>

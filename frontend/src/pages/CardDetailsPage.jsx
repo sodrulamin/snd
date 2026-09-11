@@ -17,6 +17,7 @@ import {
   Clock 
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
+import ColumnSelector from '../components/ColumnSelector';
 import { inventoryService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
@@ -27,6 +28,73 @@ export default function CardDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
+
+  const columnDefinitions = [
+    { key: 'sl', label: 'SL' },
+    { key: 'code', label: 'Unique Code' },
+    { key: 'name', label: 'Card Product Name' },
+    { key: 'retailPrice', label: 'Retail Price (MRP)' },
+    { key: 'wholesalePrice', label: 'Wholesale Price' },
+    { key: 'margin', label: 'Distributor Margin' },
+    { key: 'availableFrom', label: 'Available From' },
+    { key: 'availableUntil', label: 'Available Until' },
+    { key: 'status', label: 'Status' },
+    { key: 'actions', label: 'Actions' },
+  ];
+
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cards_visible_columns');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      // ignore
+    }
+    return {
+      sl: true,
+      code: true,
+      name: true,
+      retailPrice: true,
+      wholesalePrice: true,
+      margin: true,
+      availableFrom: true,
+      availableUntil: true,
+      status: true,
+      actions: true,
+    };
+  });
+
+  const toggleColumn = (key) => {
+    setVisibleColumns((prev) => {
+      const updated = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem('cards_visible_columns', JSON.stringify(updated));
+      } catch (e) {
+        // ignore
+      }
+      return updated;
+    });
+  };
+
+  const resetColumns = () => {
+    const defaults = {
+      sl: true,
+      code: true,
+      name: true,
+      retailPrice: true,
+      wholesalePrice: true,
+      margin: true,
+      availableFrom: true,
+      availableUntil: true,
+      status: true,
+      actions: true,
+    };
+    setVisibleColumns(defaults);
+    try {
+      localStorage.setItem('cards_visible_columns', JSON.stringify(defaults));
+    } catch (e) {
+      // ignore
+    }
+  };
 
   // Modal State for Create / Edit
   const [showModal, setShowModal] = useState(false);
@@ -305,29 +373,37 @@ export default function CardDetailsPage() {
             <h3 className="font-bold text-white text-sm">Card Details</h3>
             <span className="text-xs text-slate-400 ml-2">({filteredCards.length} card products)</span>
           </div>
-          <button
-            onClick={handleOpenCreate}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 hover:from-teal-300 hover:to-emerald-300 transition shadow-lg shadow-teal-500/20"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Create Card</span>
-          </button>
+          <div className="flex items-center gap-2.5">
+            <ColumnSelector
+              columns={columnDefinitions}
+              visibleColumns={visibleColumns}
+              onToggleColumn={toggleColumn}
+              onResetColumns={resetColumns}
+            />
+            <button
+              onClick={handleOpenCreate}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 hover:from-teal-300 hover:to-emerald-300 transition shadow-lg shadow-teal-500/20"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Create Card</span>
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
               <tr>
-                <th className="p-3.5 text-center w-12">SL</th>
-                <th className="p-3.5">Unique Code</th>
-                <th className="p-3.5">Card Product Name</th>
-                <th className="p-3.5 text-right">Retail Price (MRP)</th>
-                <th className="p-3.5 text-right">Wholesale Price</th>
-                <th className="p-3.5 text-center">Distributor Margin</th>
-                <th className="p-3.5">Available From</th>
-                <th className="p-3.5">Available Until</th>
-                <th className="p-3.5 text-center">Status</th>
-                <th className="p-3.5 text-center">Actions</th>
+                {visibleColumns.sl && <th className="p-3.5 text-center w-12">SL</th>}
+                {visibleColumns.code && <th className="p-3.5">Unique Code</th>}
+                {visibleColumns.name && <th className="p-3.5">Card Product Name</th>}
+                {visibleColumns.retailPrice && <th className="p-3.5 text-right">Retail Price (MRP)</th>}
+                {visibleColumns.wholesalePrice && <th className="p-3.5 text-right">Wholesale Price</th>}
+                {visibleColumns.margin && <th className="p-3.5 text-center">Distributor Margin</th>}
+                {visibleColumns.availableFrom && <th className="p-3.5">Available From</th>}
+                {visibleColumns.availableUntil && <th className="p-3.5">Available Until</th>}
+                {visibleColumns.status && <th className="p-3.5 text-center">Status</th>}
+                {visibleColumns.actions && <th className="p-3.5 text-center">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
@@ -338,76 +414,96 @@ export default function CardDetailsPage() {
 
                 return (
                   <tr key={c.id} className="hover:bg-slate-800/30 transition">
-                    <td className="p-3.5 text-center font-mono text-slate-400 font-semibold">
-                      {index + 1}
-                    </td>
-                    <td className="p-3.5 font-mono">
-                      <span className="px-2 py-0.5 rounded bg-teal-500/15 text-teal-300 font-black text-[11px] border border-teal-500/30">
-                        {c.code || `IPTSP-${retail}`}
-                      </span>
-                    </td>
-                    <td className="p-3.5">
-                      <p className="font-bold text-white text-sm">{c.name}</p>
-                      <p className="text-[11px] text-slate-400 line-clamp-1">{c.description || 'IPTSP Recharge Card'}</p>
-                    </td>
-                    <td className="p-3.5 text-right font-mono font-bold text-white text-sm">
-                      ৳{retail.toFixed(2)}
-                    </td>
-                    <td className="p-3.5 text-right font-mono font-bold text-teal-400 text-sm">
-                      ৳{wholesale.toFixed(2)}
-                    </td>
-                    <td className="p-3.5 text-center">
-                      <span className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/10 text-emerald-400">
-                        {margin}% (৳{(retail - wholesale).toFixed(2)})
-                      </span>
-                    </td>
-                    <td className="p-3.5 font-mono text-[11px] text-slate-300">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-teal-400" />
-                        <span>{c.availableFrom || '—'}</span>
-                      </div>
-                    </td>
-                    <td className="p-3.5 font-mono text-[11px] text-slate-300">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>{c.availableUntil || '—'}</span>
-                      </div>
-                    </td>
-                    <td className="p-3.5 text-center">
-                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                        c.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                      }`}>
-                        {c.isActive ? 'ACTIVE' : 'INACTIVE'}
-                      </span>
-                    </td>
-                    <td className="p-3.5 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => handleOpenEdit(c)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 hover:text-white text-xs font-semibold transition border border-slate-700"
-                          title="Edit Card Details"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setDeletingCard(c);
-                            setDeleteError('');
-                          }}
-                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-xs font-semibold transition border border-red-500/20"
-                          title="Delete Card Product"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
+                    {visibleColumns.sl && (
+                      <td className="p-3.5 text-center font-mono text-slate-400 font-semibold">
+                        {index + 1}
+                      </td>
+                    )}
+                    {visibleColumns.code && (
+                      <td className="p-3.5 font-mono">
+                        <span className="px-2 py-0.5 rounded bg-teal-500/15 text-teal-300 font-black text-[11px] border border-teal-500/30">
+                          {c.code || `IPTSP-${retail}`}
+                        </span>
+                      </td>
+                    )}
+                    {visibleColumns.name && (
+                      <td className="p-3.5">
+                        <p className="font-bold text-white text-sm">{c.name}</p>
+                        <p className="text-[11px] text-slate-400 line-clamp-1">{c.description || 'IPTSP Recharge Card'}</p>
+                      </td>
+                    )}
+                    {visibleColumns.retailPrice && (
+                      <td className="p-3.5 text-right font-mono font-bold text-white text-sm">
+                        ৳{retail.toFixed(2)}
+                      </td>
+                    )}
+                    {visibleColumns.wholesalePrice && (
+                      <td className="p-3.5 text-right font-mono font-bold text-teal-400 text-sm">
+                        ৳{wholesale.toFixed(2)}
+                      </td>
+                    )}
+                    {visibleColumns.margin && (
+                      <td className="p-3.5 text-center">
+                        <span className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/10 text-emerald-400">
+                          {margin}% (৳{(retail - wholesale).toFixed(2)})
+                        </span>
+                      </td>
+                    )}
+                    {visibleColumns.availableFrom && (
+                      <td className="p-3.5 font-mono text-[11px] text-slate-300">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-teal-400" />
+                          <span>{c.availableFrom || '—'}</span>
+                        </div>
+                      </td>
+                    )}
+                    {visibleColumns.availableUntil && (
+                      <td className="p-3.5 font-mono text-[11px] text-slate-300">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>{c.availableUntil || '—'}</span>
+                        </div>
+                      </td>
+                    )}
+                    {visibleColumns.status && (
+                      <td className="p-3.5 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                          c.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                        }`}>
+                          {c.isActive ? 'ACTIVE' : 'INACTIVE'}
+                        </span>
+                      </td>
+                    )}
+                    {visibleColumns.actions && (
+                      <td className="p-3.5 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEdit(c)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 hover:text-white text-xs font-semibold transition border border-slate-700"
+                            title="Edit Card Details"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDeletingCard(c);
+                              setDeleteError('');
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-xs font-semibold transition border border-red-500/20"
+                            title="Delete Card Product"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
               {filteredCards.length === 0 && !loading && (
                 <tr>
-                  <td colSpan="10" className="p-8 text-center text-slate-500">
+                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length || 1} className="p-8 text-center text-slate-500">
                     No card products found matching your search.
                   </td>
                 </tr>
