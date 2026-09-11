@@ -9,7 +9,9 @@ services:
     ports:
       - "8081:8080"
     environment:
-      SPRING_DATASOURCE_URL: ${DB_URL:-jdbc:mysql://mysql-db:3306/snd_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8}
+      TZ: "Asia/Dhaka"
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Dhaka"
+      SPRING_DATASOURCE_URL: ${DB_URL:-jdbc:mysql://mysql-db:3306/snd_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Dhaka&characterEncoding=UTF-8}
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-snd_user}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-4>2k"8OdhP6R}
       APP_CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_URLS:-http://localhost:3201}
@@ -28,6 +30,8 @@ services:
       - snd-backend
     ports:
       - "3201:80"
+    environment:
+      TZ: "Asia/Dhaka"
     networks:
       - sas-net
 
