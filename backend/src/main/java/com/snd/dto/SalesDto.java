@@ -57,6 +57,7 @@ public class SalesDto {
         private Long id;
         private Long denominationId;
         private String denominationName;
+        private String denominationCode;
         private BigDecimal unitFaceValue;
         private Long batchId;
         private String batchNumber;

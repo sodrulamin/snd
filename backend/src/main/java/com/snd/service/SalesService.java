@@ -349,6 +349,7 @@ public class SalesService {
                 .id(i.getId())
                 .denominationId(i.getDenomination().getId())
                 .denominationName(i.getDenomination().getName())
+                .denominationCode(i.getDenomination().getCode())
                 .unitFaceValue(i.getUnitFaceValue())
                 .batchId(i.getBatch() != null ? i.getBatch().getId() : null)
                 .batchNumber(i.getBatch() != null ? i.getBatch().getBatchNumber() : null)

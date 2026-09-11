@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   Palette, 
   Check, 
@@ -243,7 +243,7 @@ export default function ThemeSettingsPage() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto w-full space-y-6 flex-1">
+      <div className="w-full space-y-6 flex-1">
 
         {/* 1. Selected Theme Hero Bar */}
         <div

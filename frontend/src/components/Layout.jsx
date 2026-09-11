@@ -48,7 +48,7 @@ export default function Layout() {
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-3.5 sm:p-5 md:p-8 max-w-7xl w-full mx-auto space-y-4 sm:space-y-6">
+        <main className="flex-1 p-3.5 sm:p-5 md:p-8 w-full space-y-4 sm:space-y-6">
           <Outlet />
         </main>
       </div>

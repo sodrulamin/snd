@@ -65,6 +65,21 @@ export default function SearchableDistributorSelect({
     }
   }, [highlightedIndex, isOpen]);
 
+  const [openUpwards, setOpenUpwards] = useState(false);
+
+  // Determine whether to open upwards or downwards based on available viewport space
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 270 && rect.top > spaceBelow) {
+        setOpenUpwards(true);
+      } else {
+        setOpenUpwards(false);
+      }
+    }
+  }, [isOpen]);
+
   const handleSelect = (distributor) => {
     onChange(String(distributor.id));
     setIsOpen(false);
@@ -101,7 +116,7 @@ export default function SearchableDistributorSelect({
   };
 
   return (
-    <div className={`relative ${className}`} ref={containerRef}>
+    <div className={`relative ${isOpen ? 'z-[60]' : 'z-10'} ${className}`} ref={containerRef}>
       {/* Hidden input for form required validation */}
       {required && (
         <input
@@ -161,7 +176,7 @@ export default function SearchableDistributorSelect({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-md animate-in fade-in zoom-in-95 duration-100">
+        <div className={`absolute z-[70] left-0 right-0 ${openUpwards ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-md animate-in fade-in zoom-in-95 duration-100`}>
           {/* Search Input Header */}
           <div className="p-2.5 border-b border-slate-800 bg-slate-950/80">
             <div className="relative flex items-center">
@@ -193,7 +208,7 @@ export default function SearchableDistributorSelect({
           {/* Options List */}
           <div
             ref={listRef}
-            className="max-h-56 overflow-y-auto p-1.5 space-y-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+            className="max-h-56 overflow-y-auto overscroll-contain p-1.5 space-y-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
           >
             {filteredDistributors.length === 0 ? (
               <div className="p-4 text-center text-xs text-slate-400">

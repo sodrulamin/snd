@@ -68,6 +68,9 @@ export default function SalesPage() {
     { key: 'orderNumber', label: 'Order #' },
     { key: 'distributor', label: 'Distributor' },
     { key: 'date', label: 'Date' },
+    { key: 'itemCode', label: 'Item Code' },
+    { key: 'startSerial', label: 'Start Serial' },
+    { key: 'endSerial', label: 'End Serial' },
     { key: 'units', label: 'Units' },
     { key: 'gross', label: 'Gross' },
     { key: 'discount', label: 'Discount' },
@@ -79,7 +82,15 @@ export default function SalesPage() {
   const [visibleColumns, setVisibleColumns] = useState(() => {
     try {
       const saved = localStorage.getItem('sales_visible_columns');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          itemCode: true,
+          startSerial: true,
+          endSerial: true,
+          ...parsed,
+        };
+      }
     } catch (e) {
       // ignore
     }
@@ -87,6 +98,9 @@ export default function SalesPage() {
       orderNumber: true,
       distributor: true,
       date: true,
+      itemCode: true,
+      startSerial: true,
+      endSerial: true,
       units: true,
       gross: true,
       discount: true,
@@ -113,6 +127,9 @@ export default function SalesPage() {
       orderNumber: true,
       distributor: true,
       date: true,
+      itemCode: true,
+      startSerial: true,
+      endSerial: true,
       units: true,
       gross: true,
       discount: true,
@@ -128,6 +145,45 @@ export default function SalesPage() {
     }
   };
 
+  const getOrderSerialRanges = (order) => {
+    if (order?.items && order.items.length > 0) {
+      const ranges = order.items
+        .map((i) => {
+          const matchedDenom = denominations.find(
+            (d) => String(d.id) === String(i.denominationId) || d.name === i.denominationName
+          );
+          const itemCode = i.denominationCode || matchedDenom?.code || i.denominationName || '';
+          return {
+            start: i.startSerialNumber || '',
+            end: i.endSerialNumber || '',
+            code: itemCode,
+          };
+        })
+        .filter((r) => r.start || r.end);
+      if (ranges.length > 0) return ranges;
+    }
+    if (order?.serialRangesSummary) {
+      const parts = order.serialRangesSummary.split('|');
+      const parsed = parts
+        .map((p) => {
+          const colonIdx = p.indexOf(':');
+          const denomPart = colonIdx !== -1 ? p.substring(0, colonIdx).trim() : '';
+          const rangePart = colonIdx !== -1 ? p.substring(colonIdx + 1).trim() : p.trim();
+          const [s, e] = rangePart.split('~').map((x) => (x ? x.trim() : ''));
+          const parenIdx = denomPart.indexOf('(');
+          const rawName = parenIdx !== -1 ? denomPart.substring(0, parenIdx).trim() : denomPart;
+          const matchedDenom = denominations.find(
+            (d) => d.name?.toLowerCase() === rawName.toLowerCase() || d.code?.toLowerCase() === rawName.toLowerCase()
+          );
+          const itemCode = matchedDenom?.code || rawName;
+          return { start: s || '', end: e || '', code: itemCode };
+        })
+        .filter((r) => r.start || r.end);
+      if (parsed.length > 0) return parsed;
+    }
+    return [];
+  };
+
   // Close column selector dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -141,6 +197,30 @@ export default function SalesPage() {
 
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const modalScrollRef = useRef(null);
+
+  // Prevent background page from scrolling when modal is open
+  useEffect(() => {
+    if (showOrderModal || selectedInvoice) {
+      const prevOverflow = document.body.style.overflow;
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = 'hidden';
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+      return () => {
+        document.body.style.overflow = prevOverflow;
+        document.body.style.paddingRight = '';
+      };
+    }
+  }, [showOrderModal, selectedInvoice]);
+
+  // Forward wheel scrolling from modal header/footer/backdrop into the scrollable body
+  const handleModalCardWheel = (e) => {
+    if (modalScrollRef.current && !modalScrollRef.current.contains(e.target)) {
+      modalScrollRef.current.scrollTop += e.deltaY;
+    }
+  };
 
   const [selectedDistributorId, setSelectedDistributorId] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('BALANCE_CREDIT');
@@ -764,6 +844,9 @@ export default function SalesPage() {
                   {visibleColumns.orderNumber && <th className="px-4 py-3">Order #</th>}
                   {visibleColumns.distributor && <th className="px-4 py-3">Distributor</th>}
                   {visibleColumns.date && <th className="px-4 py-3">Date</th>}
+                  {visibleColumns.itemCode && <th className="px-4 py-3">Item Code</th>}
+                  {visibleColumns.startSerial && <th className="px-4 py-3">Start Serial</th>}
+                  {visibleColumns.endSerial && <th className="px-4 py-3">End Serial</th>}
                   {visibleColumns.units && <th className="px-4 py-3">Units</th>}
                   {visibleColumns.gross && <th className="px-4 py-3">Gross</th>}
                   {visibleColumns.discount && <th className="px-4 py-3">Discount</th>}
@@ -785,8 +868,65 @@ export default function SalesPage() {
                       </td>
                     )}
                     {visibleColumns.date && (
-                      <td className="px-4 py-3 text-slate-400">
+                      <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
                         {o.createdAt ? (() => { const d = new Date(o.createdAt); return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`; })() : '-'}
+                      </td>
+                    )}
+                    {visibleColumns.itemCode && (
+                      <td className="px-4 py-3 font-mono">
+                        {(() => {
+                          const ranges = getOrderSerialRanges(o);
+                          if (!ranges.length) return <span className="text-slate-600">-</span>;
+                          return (
+                            <div className="space-y-1">
+                              {ranges.map((r, i) => (
+                                <div key={i} className="text-xs whitespace-nowrap">
+                                  {r.code ? (
+                                    <span className="inline-block px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 border border-teal-500/20 font-bold font-mono text-[11px]">
+                                      {r.code}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-600">-</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </td>
+                    )}
+                    {visibleColumns.startSerial && (
+                      <td className="px-4 py-3 font-mono">
+                        {(() => {
+                          const ranges = getOrderSerialRanges(o);
+                          if (!ranges.length) return <span className="text-slate-600">-</span>;
+                          return (
+                            <div className="space-y-1">
+                              {ranges.map((r, i) => (
+                                <div key={i} className="text-xs text-teal-400 font-mono whitespace-nowrap">
+                                  {r.start || '-'}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </td>
+                    )}
+                    {visibleColumns.endSerial && (
+                      <td className="px-4 py-3 font-mono">
+                        {(() => {
+                          const ranges = getOrderSerialRanges(o);
+                          if (!ranges.length) return <span className="text-slate-600">-</span>;
+                          return (
+                            <div className="space-y-1">
+                              {ranges.map((r, i) => (
+                                <div key={i} className="text-xs text-teal-400 font-mono whitespace-nowrap">
+                                  {r.end || '-'}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </td>
                     )}
                     {visibleColumns.units && (
@@ -856,7 +996,10 @@ export default function SalesPage() {
 
       {/* New Sales Order Modal */}
       {showOrderModal && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-hidden">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-y-auto overscroll-contain"
+          onWheel={handleModalCardWheel}
+        >
           {/* Fullscreen Backdrop Overlay */}
           <div
             className="fixed inset-0 bg-slate-950/75 backdrop-blur-md transition-opacity"
@@ -865,14 +1008,15 @@ export default function SalesPage() {
           />
 
           {/* Modal Dialog Card (Never exceeds 90vh, pinned header and footer) */}
-          <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl shadow-2xl z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="relative w-full max-w-2xl max-h-[90vh] my-auto flex flex-col bg-slate-900 border border-slate-700/70 rounded-3xl shadow-2xl z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Pinned Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-950/40 shrink-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-950/60 shrink-0 select-none">
               <div>
                 <h3 className="text-lg font-bold text-white">Create Order</h3>
                 <p className="text-xs text-slate-400 mt-0.5">Select partner, product and serial range</p>
               </div>
               <button
+                type="button"
                 onClick={() => setShowOrderModal(false)}
                 className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800/60 transition"
               >
@@ -883,7 +1027,10 @@ export default function SalesPage() {
             {/* Form with Scrollable Content Body and Pinned Footer */}
             <form onSubmit={handleCreateOrder} className="flex flex-col flex-1 overflow-hidden min-h-0">
               {/* Scrollable Form Body */}
-              <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              <div
+                ref={modalScrollRef}
+                className="p-6 overflow-y-auto flex-1 space-y-4 overscroll-contain"
+              >
                 {formError && (
                   <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -892,7 +1039,7 @@ export default function SalesPage() {
                 )}
 
                 {/* Partner & Payment Method */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-30">
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">
                       Distributor <span className="text-teal-400">*</span>
@@ -911,7 +1058,7 @@ export default function SalesPage() {
                     <select
                       value={selectedPaymentMethod}
                       onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                      className="w-full bg-slate-950/60 backdrop-blur-sm border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                      className="w-full bg-slate-950/80 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                     >
                       <option value="BALANCE_CREDIT">Distributor Credit Wallet</option>
                       <option value="BANK_TRANSFER">Bank Transfer</option>
@@ -921,7 +1068,7 @@ export default function SalesPage() {
                 </div>
 
                 {/* Order Items */}
-                <div className="space-y-3 pt-2">
+                <div className="space-y-3 pt-2 relative z-20">
                   <div className="flex items-center justify-between pb-1 border-b border-slate-800/80">
                     <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                       <Layers className="w-3.5 h-3.5 text-teal-400" />
@@ -942,9 +1089,13 @@ export default function SalesPage() {
                     const stockInfo = item.availableStockInfo;
 
                     return (
-                      <div key={idx} className="p-4 rounded-2xl bg-slate-950/50 backdrop-blur-sm border border-slate-800/80 space-y-3 relative group">
+                      <div
+                        key={idx}
+                        className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-3 relative group"
+                        style={{ zIndex: (orderItems.length - idx) * 10 }}
+                      >
                         {/* Item # and Product Selector in One Line */}
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2.5 relative z-20">
                           <span className="text-[11px] font-bold text-teal-400 uppercase tracking-wide px-2 py-2 rounded-xl bg-teal-500/10 border border-teal-500/20 flex-shrink-0">
                             Item #{idx + 1}
                           </span>
@@ -972,7 +1123,7 @@ export default function SalesPage() {
                         </div>
 
                         {/* Serial Range, Allocation & Subtotal in One Line */}
-                        <div className="space-y-2">
+                        <div className="space-y-2 relative z-10">
                           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 flex-shrink-0">
                               <Hash className="w-3 h-3" /> Serial
@@ -1032,7 +1183,7 @@ export default function SalesPage() {
                 </div>
 
                 {/* Discount & Custom Notes */}
-                <div className="grid grid-cols-2 gap-4 pt-2">
+                <div className="grid grid-cols-2 gap-4 pt-2 relative z-0">
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">
                       Discount % <span className="text-slate-500">(Optional override)</span>
@@ -1045,7 +1196,7 @@ export default function SalesPage() {
                       placeholder={`Default: ${activeDistributor?.discountRate || 0}%`}
                       value={customDiscount}
                       onChange={(e) => setCustomDiscount(e.target.value)}
-                      className="w-full bg-slate-950/60 backdrop-blur-sm border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                      className="w-full bg-slate-950/80 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                     />
                   </div>
 
@@ -1056,13 +1207,13 @@ export default function SalesPage() {
                       placeholder="e.g. Monthly allocation batch"
                       value={orderNotes}
                       onChange={(e) => setOrderNotes(e.target.value)}
-                      className="w-full bg-slate-950/60 backdrop-blur-sm border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                      className="w-full bg-slate-950/80 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                     />
                   </div>
                 </div>
 
                 {/* Calculated Summary Box */}
-                <div className="p-4 rounded-2xl bg-slate-950/50 backdrop-blur-sm border border-slate-800/80 space-y-1.5 text-xs">
+                <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-1.5 text-xs relative z-0">
                   <div className="flex justify-between text-slate-400">
                     <span>Wholesale Value:</span>
                     <span className="font-mono text-white">৳{calculatedGross.toFixed(2)}</span>
