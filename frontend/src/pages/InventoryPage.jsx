@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { 
   Layers, 
@@ -592,9 +593,17 @@ export default function InventoryPage() {
       </div>
 
       {/* Add Inventory Modal */}
-      {showBatchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-lg p-6 shadow-2xl my-8">
+      {showBatchModal && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4 sm:p-6">
+          {/* Fullscreen Backdrop Overlay */}
+          <div 
+            className="fixed inset-0 bg-slate-950/75 backdrop-blur-md transition-opacity"
+            onClick={() => setShowBatchModal(false)}
+            aria-hidden="true"
+          />
+
+          {/* Modal Dialog Card */}
+          <div className="relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl w-full max-w-lg p-6 shadow-2xl my-8 z-10 animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-white mb-1">Add Card Inventory</h3>
             <p className="text-xs text-slate-400 mb-4">
               Enter serial number range to save serialized card inventory
@@ -751,7 +760,8 @@ export default function InventoryPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

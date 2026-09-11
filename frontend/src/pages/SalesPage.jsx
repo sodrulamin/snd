@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams, useLocation } from 'react-router-dom';
-import { 
-  Plus, 
-  Trash2, 
-  Eye, 
-  Download, 
+import {
+  Plus,
+  Trash2,
+  Eye,
+  Download,
   AlertCircle,
   Hash,
   Layers,
@@ -276,7 +277,7 @@ export default function SalesPage() {
 
   const handleItemChange = (idx, field, val) => {
     const updated = [...orderItems];
-    
+
     // When product/denomination changes, automatically pre-fill available serial range cleanly
     if (field === 'denominationId') {
       const denomBatch = batches.find(b => String(b.denominationId) === String(val) && b.startSerialNumber && b.endSerialNumber);
@@ -291,13 +292,13 @@ export default function SalesPage() {
       prefillSerialRangeForItem(idx, val, updated);
       return;
     }
-    
+
     updated[idx][field] = val;
     setOrderItems(updated);
   };
 
-  const currentDiscountRate = customDiscount !== '' 
-    ? parseFloat(customDiscount) || 0 
+  const currentDiscountRate = customDiscount !== ''
+    ? parseFloat(customDiscount) || 0
     : (activeDistributor?.discountRate || 0);
 
   const calculatedGross = orderItems.reduce((acc, item) => {
@@ -572,9 +573,9 @@ export default function SalesPage() {
             {(filterStartDate || filterEndDate) && (
               <button
                 type="button"
-                onClick={() => { 
-                  setFilterStartDate(''); 
-                  setFilterEndDate(''); 
+                onClick={() => {
+                  setFilterStartDate('');
+                  setFilterEndDate('');
                   fetchOrders(0, {
                     search: searchQuery || undefined,
                     distributorId: filterDistributorId || undefined,
@@ -582,7 +583,7 @@ export default function SalesPage() {
                     status: filterOrderStatus || undefined,
                     startDate: undefined,
                     endDate: undefined,
-                  }); 
+                  });
                 }}
                 className="text-xs text-teal-400 hover:underline"
               >
@@ -683,215 +684,231 @@ export default function SalesPage() {
       </div>
 
       {/* New Sales Order Modal */}
-      {showOrderModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto">
-          <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 my-8">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+      {showOrderModal && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-hidden">
+          {/* Fullscreen Backdrop Overlay */}
+          <div
+            className="fixed inset-0 bg-slate-950/75 backdrop-blur-md transition-opacity"
+            onClick={() => setShowOrderModal(false)}
+            aria-hidden="true"
+          />
+
+          {/* Modal Dialog Card (Never exceeds 90vh, pinned header and footer) */}
+          <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl shadow-2xl z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Pinned Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-950/40 shrink-0">
               <div>
-                <h3 className="text-lg font-bold text-white">Create Wholesale Distributor Order</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Select partner, product, and verify serial range allocation</p>
+                <h3 className="text-lg font-bold text-white">Create Order</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Select partner, product and serial range</p>
               </div>
               <button
                 onClick={() => setShowOrderModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg transition"
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800/60 transition"
               >
                 ✕
               </button>
             </div>
 
-            {formError && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{formError}</span>
-              </div>
-            )}
+            {/* Form with Scrollable Content Body and Pinned Footer */}
+            <form onSubmit={handleCreateOrder} className="flex flex-col flex-1 overflow-hidden min-h-0">
+              {/* Scrollable Form Body */}
+              <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                {formError && (
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
 
-            <form onSubmit={handleCreateOrder} className="space-y-4">
-              {/* Partner & Payment Method */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">
-                    Distributor Partner <span className="text-teal-400">*</span>
-                  </label>
-                  <SearchableDistributorSelect
-                    required
-                    value={selectedDistributorId}
-                    onChange={(val) => setSelectedDistributorId(val)}
-                    distributors={distributors}
-                    placeholder="-- Search or Choose Distributor --"
-                  />
+                {/* Partner & Payment Method */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">
+                      Distributor <span className="text-teal-400">*</span>
+                    </label>
+                    <SearchableDistributorSelect
+                      required
+                      value={selectedDistributorId}
+                      onChange={(val) => setSelectedDistributorId(val)}
+                      distributors={distributors}
+                      placeholder="-- Search or Choose Distributor --"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">Payment Method</label>
+                    <select
+                      value={selectedPaymentMethod}
+                      onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                      className="w-full bg-slate-950/60 backdrop-blur-sm border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                    >
+                      <option value="BALANCE_CREDIT">Distributor Credit Wallet</option>
+                      <option value="BANK_TRANSFER">Bank Transfer</option>
+                      <option value="CASH">Cash Settlement</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">Payment Method</label>
-                  <select
-                    value={selectedPaymentMethod}
-                    onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
-                  >
-                    <option value="BALANCE_CREDIT">Distributor Credit Wallet</option>
-                    <option value="BANK_TRANSFER">Bank Wire / Transfer</option>
-                    <option value="CASH">Cash Settlement</option>
-                  </select>
-                </div>
-              </div>
+                {/* Order Items */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-800/80">
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-teal-400" />
+                      Card & Serial Range
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAddItemRow}
+                      className="text-xs text-teal-400 hover:text-teal-300 font-bold flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 transition"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add
+                    </button>
+                  </div>
 
-              {/* Order Items */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between pb-1 border-b border-slate-800">
-                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-teal-400" />
-                    Card Products & Serial Allocation
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleAddItemRow}
-                    className="text-xs text-teal-400 hover:text-teal-300 font-bold flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 transition"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add
-                  </button>
-                </div>
+                  {orderItems.map((item, idx) => {
+                    const selectedDenomObj = denominations.find(d => String(d.id) === String(item.denominationId));
+                    const range = calculateItemRange(item.startSerialNumber, item.endSerialNumber, item.denominationId);
+                    const stockInfo = item.availableStockInfo;
 
-                {orderItems.map((item, idx) => {
-                  const selectedDenomObj = denominations.find(d => String(d.id) === String(item.denominationId));
-                  const range = calculateItemRange(item.startSerialNumber, item.endSerialNumber, item.denominationId);
-                  const stockInfo = item.availableStockInfo;
+                    return (
+                      <div key={idx} className="p-4 rounded-2xl bg-slate-950/50 backdrop-blur-sm border border-slate-800/80 space-y-3 relative group">
+                        {/* Item # and Product Selector in One Line */}
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-[11px] font-bold text-teal-400 uppercase tracking-wide px-2 py-2 rounded-xl bg-teal-500/10 border border-teal-500/20 flex-shrink-0">
+                            Item #{idx + 1}
+                          </span>
 
-                  return (
-                    <div key={idx} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3 relative group">
-                      {/* Item # and Product Selector in One Line */}
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-[11px] font-bold text-teal-400 uppercase tracking-wide px-2 py-2 rounded-xl bg-teal-500/10 border border-teal-500/20 flex-shrink-0">
-                          Item #{idx + 1}
-                        </span>
-
-                        <div className="flex-1 min-w-0">
-                          <SearchableProductSelect
-                            required
-                            value={item.denominationId}
-                            onChange={(val) => handleItemChange(idx, 'denominationId', val)}
-                            products={denominations.filter(d => (d.availableStock || 0) > 0 || String(d.id) === String(item.denominationId))}
-                            placeholder="-- Search or Choose Card Product --"
-                          />
-                        </div>
-
-                        {orderItems.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveItemRow(idx)}
-                            className="text-slate-500 hover:text-red-400 p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-red-500/30 transition flex-shrink-0"
-                            title="Remove item"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Serial Range, Allocation & Subtotal in One Line */}
-                      <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
-                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-                          <div className="flex-1 min-w-[130px]">
-                            <input
-                              type="text"
+                          <div className="flex-1 min-w-0">
+                            <SearchableProductSelect
                               required
-                              placeholder="Start Serial"
-                              value={item.startSerialNumber}
-                              onChange={(e) => handleItemChange(idx, 'startSerialNumber', e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-teal-500 placeholder:font-normal placeholder:text-slate-500"
+                              value={item.denominationId}
+                              onChange={(val) => handleItemChange(idx, 'denominationId', val)}
+                              products={denominations.filter(d => (d.availableStock || 0) > 0 || String(d.id) === String(item.denominationId))}
+                              placeholder="-- Search or Choose Card --"
                             />
                           </div>
 
-                          <span className="text-slate-500 font-mono font-bold">~</span>
-
-                          <div className="flex-1 min-w-[130px]">
-                            <input
-                              type="text"
-                              required
-                              placeholder="End Serial"
-                              value={item.endSerialNumber}
-                              onChange={(e) => handleItemChange(idx, 'endSerialNumber', e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-teal-500 placeholder:font-normal placeholder:text-slate-500"
-                            />
-                          </div>
-
-                          {range && range.valid && (
-                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/30 text-xs flex-shrink-0">
-                              <div className="flex items-center gap-1 text-teal-300">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-teal-400 flex-shrink-0" />
-                                <span>
-                                  Allocating: <strong className="text-white font-mono">{range.count.toLocaleString()}</strong> cards
-                                </span>
-                              </div>
-                              {selectedDenomObj && (
-                                <span className="font-mono text-teal-300 font-bold pl-2 border-l border-teal-500/30">
-                                  ৳{(range.count * Number(selectedDenomObj.wholesalePrice != null ? selectedDenomObj.wholesalePrice : (selectedDenomObj.retailPrice || selectedDenomObj.faceValue || 0))).toFixed(2)}
-                                </span>
-                              )}
-                            </div>
+                          {orderItems.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItemRow(idx)}
+                              className="text-slate-500 hover:text-red-400 p-2 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-red-500/30 transition flex-shrink-0"
+                              title="Remove item"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           )}
                         </div>
 
-                        {/* Error Message if range is invalid */}
-                        {range && !range.valid && (
-                          <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400 flex items-center gap-1.5">
-                            <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
-                            <span>{range.error}</span>
+                        {/* Serial Range, Allocation & Subtotal in One Line */}
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 flex-shrink-0">
+                              <Hash className="w-3 h-3" /> Serial
+                            </span>
+                            <div className="flex-1 min-w-[130px]">
+                              <input
+                                type="text"
+                                required
+                                placeholder="Start Serial"
+                                value={item.startSerialNumber}
+                                onChange={(e) => handleItemChange(idx, 'startSerialNumber', e.target.value)}
+                                className="w-full bg-slate-950/70 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-teal-500 placeholder:font-normal placeholder:text-slate-500"
+                              />
+                            </div>
+
+                            <span className="text-slate-500 font-mono font-bold">~</span>
+
+                            <div className="flex-1 min-w-[130px]">
+                              <input
+                                type="text"
+                                required
+                                placeholder="End Serial"
+                                value={item.endSerialNumber}
+                                onChange={(e) => handleItemChange(idx, 'endSerialNumber', e.target.value)}
+                                className="w-full bg-slate-950/70 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-teal-500 placeholder:font-normal placeholder:text-slate-500"
+                              />
+                            </div>
+
+                            {range && range.valid && (
+                              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/30 text-xs flex-shrink-0">
+                                <div className="flex items-center gap-1 text-teal-300">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-400 flex-shrink-0" />
+                                  <span>
+                                    <strong className="text-white font-mono">{range.count.toLocaleString()}</strong> cards
+                                  </span>
+                                </div>
+                                {selectedDenomObj && (
+                                  <span className="font-mono text-teal-300 font-bold pl-2 border-l border-teal-500/30">
+                                    ৳{(range.count * Number(selectedDenomObj.wholesalePrice != null ? selectedDenomObj.wholesalePrice : (selectedDenomObj.retailPrice || selectedDenomObj.faceValue || 0))).toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        )}
+
+                          {/* Error Message if range is invalid */}
+                          {range && !range.valid && (
+                            <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400 flex items-center gap-1.5">
+                              <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                              <span>{range.error}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+
+                {/* Discount & Custom Notes */}
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">
+                      Discount % <span className="text-slate-500">(Optional override)</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      placeholder={`Default: ${activeDistributor?.discountRate || 0}%`}
+                      value={customDiscount}
+                      onChange={(e) => setCustomDiscount(e.target.value)}
+                      className="w-full bg-slate-950/60 backdrop-blur-sm border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">Order Remarks / Notes</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Monthly allocation batch"
+                      value={orderNotes}
+                      onChange={(e) => setOrderNotes(e.target.value)}
+                      className="w-full bg-slate-950/60 backdrop-blur-sm border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Calculated Summary Box */}
+                <div className="p-4 rounded-2xl bg-slate-950/50 backdrop-blur-sm border border-slate-800/80 space-y-1.5 text-xs">
+                  <div className="flex justify-between text-slate-400">
+                    <span>Wholesale Value:</span>
+                    <span className="font-mono text-white">৳{calculatedGross.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-400">
+                    <span>Distributor Discount ({currentDiscountRate}%):</span>
+                    <span className="font-mono">-৳{calculatedDiscount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-sm text-white pt-1 border-t border-slate-800/80">
+                    <span>Payable Amount:</span>
+                    <span className="font-mono text-teal-400 text-base">৳{calculatedNet.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Discount & Custom Notes */}
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">
-                    Custom Discount % <span className="text-slate-500">(Optional override)</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="100"
-                    placeholder={`Default: ${activeDistributor?.discountRate || 0}%`}
-                    value={customDiscount}
-                    onChange={(e) => setCustomDiscount(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1.5">Order Remarks / Notes</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Monthly allocation batch"
-                    value={orderNotes}
-                    onChange={(e) => setOrderNotes(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
-                  />
-                </div>
-              </div>
-
-              {/* Calculated Summary Box */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1.5 text-xs">
-                <div className="flex justify-between text-slate-400">
-                  <span>Wholesale Value:</span>
-                  <span className="font-mono text-white">৳{calculatedGross.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-emerald-400">
-                  <span>Distributor Discount ({currentDiscountRate}%):</span>
-                  <span className="font-mono">-৳{calculatedDiscount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-sm text-white pt-1 border-t border-slate-800">
-                  <span>Payable Amount:</span>
-                  <span className="font-mono text-teal-400 text-base">৳{calculatedNet.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+              {/* Pinned Footer with Action Buttons */}
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-800/80 bg-slate-950/40 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowOrderModal(false)}
@@ -909,7 +926,8 @@ export default function SalesPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Invoice Modal */}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, 
   Printer, 
@@ -21,14 +22,14 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
     window.print();
   };
 
-  return (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto animate-fadeIn"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl my-8">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4 sm:p-6 print:p-0">
+      <div 
+        className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity print:hidden"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div className="relative bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl my-8 z-10 print:my-0 print:border-none print:shadow-none animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/50 print:hidden">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
@@ -165,6 +166,7 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
