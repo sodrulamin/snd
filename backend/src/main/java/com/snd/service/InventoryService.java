@@ -245,6 +245,287 @@ public class InventoryService {
         return mapToBatchSummary(batch);
     }
 
+    public List<InventoryDto.CardDetailDto> getBatchCards(Long batchId) {
+        CardBatch batch = batchRepository.findById(batchId)
+            .orElseThrow(() -> new RuntimeException("Batch not found: " + batchId));
+
+        List<RechargeCard> existingCards = rechargeCardRepository.findByBatchId(batchId);
+        java.util.Map<String, RechargeCard> cardMap = new java.util.HashMap<>();
+        for (RechargeCard c : existingCards) {
+            if (c.getSerialNumber() != null) {
+                cardMap.put(c.getSerialNumber(), c);
+            }
+        }
+
+        List<InventoryDto.CardDetailDto> result = new ArrayList<>();
+        String startSerial = batch.getStartSerialNumber();
+        String endSerial = batch.getEndSerialNumber();
+
+        Pattern pattern = Pattern.compile("^(.*?)(\\d+)$");
+        Matcher mStart = StringUtils.hasText(startSerial) ? pattern.matcher(startSerial.trim()) : null;
+        Matcher mEnd = StringUtils.hasText(endSerial) ? pattern.matcher(endSerial.trim()) : null;
+
+        if (mStart != null && mEnd != null && mStart.matches() && mEnd.matches() && mStart.group(1).equals(mEnd.group(1))) {
+            String prefix = mStart.group(1);
+            String startDigits = mStart.group(2);
+            String endDigits = mEnd.group(2);
+            int padLen = Math.max(startDigits.length(), endDigits.length());
+            long startNum = Long.parseLong(startDigits);
+            long endNum = Long.parseLong(endDigits);
+
+            for (long n = startNum; n <= endNum; n++) {
+                String sNum = prefix + String.format("%0" + padLen + "d", n);
+                RechargeCard card = cardMap.get(sNum);
+
+                String status = card != null && card.getStatus() != null 
+                    ? card.getStatus() 
+                    : (batch.getStatus() == BatchStatus.SOLD ? "SOLD" : "IN_STOCK");
+
+                result.add(InventoryDto.CardDetailDto.builder()
+                    .id(card != null ? card.getId() : null)
+                    .batchId(batch.getId())
+                    .batchNumber(batch.getBatchNumber())
+                    .denominationId(batch.getDenomination().getId())
+                    .denominationCode(batch.getDenomination().getCode())
+                    .denominationName(batch.getDenomination().getName())
+                    .faceValue(batch.getDenomination().getFaceValue())
+                    .retailPrice(batch.getDenomination().getRetailPrice())
+                    .wholesalePrice(batch.getDenomination().getWholesalePrice())
+                    .currency(batch.getDenomination().getCurrency())
+                    .serialNumber(sNum)
+                    .pinMasked(card != null ? card.getPinMasked() : null)
+                    .status(status)
+                    .distributorId(card != null && card.getDistributor() != null ? card.getDistributor().getId() : null)
+                    .distributorName(card != null && card.getDistributor() != null ? card.getDistributor().getFullName() : null)
+                    .orderId(card != null && card.getOrder() != null ? card.getOrder().getId() : null)
+                    .orderNumber(card != null && card.getOrder() != null ? card.getOrder().getOrderNumber() : null)
+                    .soldAt(card != null ? card.getSoldAt() : null)
+                    .redeemedAt(card != null ? card.getRedeemedAt() : null)
+                    .expiryDate(card != null && card.getExpiryDate() != null ? card.getExpiryDate() : batch.getDenomination().getAvailableUntil())
+                    .createdAt(card != null ? card.getCreatedAt() : batch.getGeneratedAt())
+                    .build());
+            }
+        } else {
+            // Fallback: If serial pattern isn't parseable, populate from existing rechargeCard records
+            for (RechargeCard card : existingCards) {
+                result.add(InventoryDto.CardDetailDto.builder()
+                    .id(card.getId())
+                    .batchId(batch.getId())
+                    .batchNumber(batch.getBatchNumber())
+                    .denominationId(batch.getDenomination().getId())
+                    .denominationCode(batch.getDenomination().getCode())
+                    .denominationName(batch.getDenomination().getName())
+                    .faceValue(batch.getDenomination().getFaceValue())
+                    .retailPrice(batch.getDenomination().getRetailPrice())
+                    .wholesalePrice(batch.getDenomination().getWholesalePrice())
+                    .currency(batch.getDenomination().getCurrency())
+                    .serialNumber(card.getSerialNumber())
+                    .pinMasked(card.getPinMasked())
+                    .status(card.getStatus())
+                    .distributorId(card.getDistributor() != null ? card.getDistributor().getId() : null)
+                    .distributorName(card.getDistributor() != null ? card.getDistributor().getFullName() : null)
+                    .orderId(card.getOrder() != null ? card.getOrder().getId() : null)
+                    .orderNumber(card.getOrder() != null ? card.getOrder().getOrderNumber() : null)
+                    .soldAt(card.getSoldAt())
+                    .redeemedAt(card.getRedeemedAt())
+                    .expiryDate(card.getExpiryDate())
+                    .createdAt(card.getCreatedAt())
+                    .build());
+            }
+        }
+
+        return result;
+    }
+
+    public List<InventoryDto.CardDetailDto> getLotCards(String batchNumber) {
+        List<CardBatch> batches = batchRepository.findByBatchNumberOrderByGeneratedAtDesc(batchNumber);
+        if (batches.isEmpty()) {
+            throw new RuntimeException("Inventory lot not found: " + batchNumber);
+        }
+
+        // Aggregate cards across all batch slices belonging to this lot number
+        List<InventoryDto.CardDetailDto> allCards = new ArrayList<>();
+        for (CardBatch b : batches) {
+            allCards.addAll(getBatchCards(b.getId()));
+        }
+
+        // Sort by serialNumber ascending so contiguous sequences are grouped correctly
+        allCards.sort((c1, c2) -> {
+            String s1 = c1.getSerialNumber() != null ? c1.getSerialNumber() : "";
+            String s2 = c2.getSerialNumber() != null ? c2.getSerialNumber() : "";
+            return s1.compareTo(s2);
+        });
+
+        return allCards;
+    }
+
+    public List<InventoryDto.BatchSerialRangeDto> getLotSerialRanges(String batchNumber) {
+        List<CardBatch> batches = batchRepository.findByBatchNumberOrderByGeneratedAtDesc(batchNumber);
+        if (batches.isEmpty()) {
+            throw new RuntimeException("Inventory lot not found: " + batchNumber);
+        }
+
+        CardBatch firstBatch = batches.get(0);
+        List<InventoryDto.CardDetailDto> cards = getLotCards(batchNumber);
+        List<InventoryDto.BatchSerialRangeDto> ranges = new ArrayList<>();
+        if (cards.isEmpty()) {
+            return ranges;
+        }
+
+        BigDecimal unitWholesale = firstBatch.getDenomination().getWholesalePrice() != null 
+            ? firstBatch.getDenomination().getWholesalePrice() 
+            : firstBatch.getDenomination().getFaceValue();
+        BigDecimal unitRetail = firstBatch.getDenomination().getRetailPrice() != null 
+            ? firstBatch.getDenomination().getRetailPrice() 
+            : firstBatch.getDenomination().getFaceValue();
+
+        InventoryDto.CardDetailDto rangeStart = cards.get(0);
+        InventoryDto.CardDetailDto prevCard = cards.get(0);
+        int currentRangeQty = 1;
+
+        for (int i = 1; i < cards.size(); i++) {
+            InventoryDto.CardDetailDto current = cards.get(i);
+            boolean sameStatus = Objects.equals(current.getStatus(), rangeStart.getStatus());
+            boolean sameDistributor = Objects.equals(current.getDistributorId(), rangeStart.getDistributorId());
+            boolean sameOrder = Objects.equals(current.getOrderId(), rangeStart.getOrderId());
+
+            if (sameStatus && sameDistributor && sameOrder) {
+                currentRangeQty++;
+                prevCard = current;
+            } else {
+                // Finish current range block
+                ranges.add(InventoryDto.BatchSerialRangeDto.builder()
+                    .batchId(firstBatch.getId())
+                    .batchNumber(batchNumber)
+                    .denominationId(firstBatch.getDenomination().getId())
+                    .denominationCode(firstBatch.getDenomination().getCode())
+                    .denominationName(firstBatch.getDenomination().getName())
+                    .startSerialNumber(rangeStart.getSerialNumber())
+                    .endSerialNumber(prevCard.getSerialNumber())
+                    .quantity(currentRangeQty)
+                    .status(rangeStart.getStatus())
+                    .distributorId(rangeStart.getDistributorId())
+                    .distributorName(rangeStart.getDistributorName())
+                    .orderId(rangeStart.getOrderId())
+                    .orderNumber(rangeStart.getOrderNumber())
+                    .unitWholesalePrice(unitWholesale)
+                    .totalWholesalePrice(unitWholesale.multiply(BigDecimal.valueOf(currentRangeQty)))
+                    .unitRetailPrice(unitRetail)
+                    .totalRetailPrice(unitRetail.multiply(BigDecimal.valueOf(currentRangeQty)))
+                    .build());
+
+                rangeStart = current;
+                prevCard = current;
+                currentRangeQty = 1;
+            }
+        }
+
+        // Add final range block
+        ranges.add(InventoryDto.BatchSerialRangeDto.builder()
+            .batchId(firstBatch.getId())
+            .batchNumber(batchNumber)
+            .denominationId(firstBatch.getDenomination().getId())
+            .denominationCode(firstBatch.getDenomination().getCode())
+            .denominationName(firstBatch.getDenomination().getName())
+            .startSerialNumber(rangeStart.getSerialNumber())
+            .endSerialNumber(prevCard.getSerialNumber())
+            .quantity(currentRangeQty)
+            .status(rangeStart.getStatus())
+            .distributorId(rangeStart.getDistributorId())
+            .distributorName(rangeStart.getDistributorName())
+            .orderId(rangeStart.getOrderId())
+            .orderNumber(rangeStart.getOrderNumber())
+            .unitWholesalePrice(unitWholesale)
+            .totalWholesalePrice(unitWholesale.multiply(BigDecimal.valueOf(currentRangeQty)))
+            .unitRetailPrice(unitRetail)
+            .totalRetailPrice(unitRetail.multiply(BigDecimal.valueOf(currentRangeQty)))
+            .build());
+
+        return ranges;
+    }
+
+    public List<InventoryDto.BatchSerialRangeDto> getBatchSerialRanges(Long batchId) {
+        CardBatch batch = batchRepository.findById(batchId)
+            .orElseThrow(() -> new RuntimeException("Batch not found: " + batchId));
+
+        List<InventoryDto.CardDetailDto> cards = getBatchCards(batchId);
+        List<InventoryDto.BatchSerialRangeDto> ranges = new ArrayList<>();
+        if (cards.isEmpty()) {
+            return ranges;
+        }
+
+        BigDecimal unitWholesale = batch.getDenomination().getWholesalePrice() != null 
+            ? batch.getDenomination().getWholesalePrice() 
+            : batch.getDenomination().getFaceValue();
+        BigDecimal unitRetail = batch.getDenomination().getRetailPrice() != null 
+            ? batch.getDenomination().getRetailPrice() 
+            : batch.getDenomination().getFaceValue();
+
+        InventoryDto.CardDetailDto rangeStart = cards.get(0);
+        InventoryDto.CardDetailDto prevCard = cards.get(0);
+        int currentRangeQty = 1;
+
+        for (int i = 1; i < cards.size(); i++) {
+            InventoryDto.CardDetailDto current = cards.get(i);
+            boolean sameStatus = Objects.equals(current.getStatus(), rangeStart.getStatus());
+            boolean sameDistributor = Objects.equals(current.getDistributorId(), rangeStart.getDistributorId());
+            boolean sameOrder = Objects.equals(current.getOrderId(), rangeStart.getOrderId());
+
+            if (sameStatus && sameDistributor && sameOrder) {
+                currentRangeQty++;
+                prevCard = current;
+            } else {
+                // Finish current range block
+                ranges.add(InventoryDto.BatchSerialRangeDto.builder()
+                    .batchId(batch.getId())
+                    .batchNumber(batch.getBatchNumber())
+                    .denominationId(batch.getDenomination().getId())
+                    .denominationCode(batch.getDenomination().getCode())
+                    .denominationName(batch.getDenomination().getName())
+                    .startSerialNumber(rangeStart.getSerialNumber())
+                    .endSerialNumber(prevCard.getSerialNumber())
+                    .quantity(currentRangeQty)
+                    .status(rangeStart.getStatus())
+                    .distributorId(rangeStart.getDistributorId())
+                    .distributorName(rangeStart.getDistributorName())
+                    .orderId(rangeStart.getOrderId())
+                    .orderNumber(rangeStart.getOrderNumber())
+                    .unitWholesalePrice(unitWholesale)
+                    .totalWholesalePrice(unitWholesale.multiply(BigDecimal.valueOf(currentRangeQty)))
+                    .unitRetailPrice(unitRetail)
+                    .totalRetailPrice(unitRetail.multiply(BigDecimal.valueOf(currentRangeQty)))
+                    .build());
+
+                rangeStart = current;
+                prevCard = current;
+                currentRangeQty = 1;
+            }
+        }
+
+        // Add final range block
+        ranges.add(InventoryDto.BatchSerialRangeDto.builder()
+            .batchId(batch.getId())
+            .batchNumber(batch.getBatchNumber())
+            .denominationId(batch.getDenomination().getId())
+            .denominationCode(batch.getDenomination().getCode())
+            .denominationName(batch.getDenomination().getName())
+            .startSerialNumber(rangeStart.getSerialNumber())
+            .endSerialNumber(prevCard.getSerialNumber())
+            .quantity(currentRangeQty)
+            .status(rangeStart.getStatus())
+            .distributorId(rangeStart.getDistributorId())
+            .distributorName(rangeStart.getDistributorName())
+            .orderId(rangeStart.getOrderId())
+            .orderNumber(rangeStart.getOrderNumber())
+            .unitWholesalePrice(unitWholesale)
+            .totalWholesalePrice(unitWholesale.multiply(BigDecimal.valueOf(currentRangeQty)))
+            .unitRetailPrice(unitRetail)
+            .totalRetailPrice(unitRetail.multiply(BigDecimal.valueOf(currentRangeQty)))
+            .build());
+
+        return ranges;
+    }
+
     @Transactional
     public InventoryDto.BatchSummaryDto generateBatch(InventoryDto.BatchGenerateRequest request, String username) {
         CardDenomination denomination = denominationRepository.findById(request.getDenominationId())

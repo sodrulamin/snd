@@ -15,6 +15,7 @@ import java.util.Optional;
 @Repository
 public interface CardBatchRepository extends JpaRepository<CardBatch, Long> {
     Optional<CardBatch> findByBatchNumber(String batchNumber);
+    List<CardBatch> findByBatchNumberOrderByGeneratedAtDesc(String batchNumber);
 
     List<CardBatch> findByDenominationId(Long denominationId);
 

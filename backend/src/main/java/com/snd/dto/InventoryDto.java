@@ -171,4 +171,28 @@ public class InventoryDto {
         private BigDecimal totalWholesaleValue;
         private BigDecimal totalRetailValue;
     }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BatchSerialRangeDto {
+        private Long batchId;
+        private String batchNumber;
+        private Long denominationId;
+        private String denominationCode;
+        private String denominationName;
+        private String startSerialNumber;
+        private String endSerialNumber;
+        private Integer quantity;
+        private String status; // IN_STOCK, SOLD, ALLOCATED
+        private Long distributorId;
+        private String distributorName;
+        private Long orderId;
+        private String orderNumber;
+        private BigDecimal unitWholesalePrice;
+        private BigDecimal totalWholesalePrice;
+        private BigDecimal unitRetailPrice;
+        private BigDecimal totalRetailPrice;
+    }
 }

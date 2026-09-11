@@ -57,6 +57,10 @@ export const inventoryService = {
   getAvailableDenominations: (params) => api.get('/inventory/batches/denominations', { params }),
   getInventorySummary: () => api.get('/inventory/batches/summary'),
   getBatchById: (id) => api.get(`/inventory/batches/${id}`),
+  getBatchCards: (id) => api.get(`/inventory/batches/${id}/cards`),
+  getBatchSerialRanges: (id) => api.get(`/inventory/batches/${id}/ranges`),
+  getLotSerialRanges: (batchNumber) => api.get(`/inventory/batches/lot/${encodeURIComponent(batchNumber)}/ranges`),
+  getLotCards: (batchNumber) => api.get(`/inventory/batches/lot/${encodeURIComponent(batchNumber)}/cards`),
   generateBatch: (data) => api.post('/inventory/batches/generate', data),
   getAvailableSerialRange: (denominationId) => api.get(`/inventory/denominations/${denominationId}/available-range`),
 };

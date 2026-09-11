@@ -125,6 +125,26 @@ public class InventoryController {
         return ResponseEntity.ok(ApiResponse.success(inventoryService.getBatchById(id)));
     }
 
+    @GetMapping("/batches/{id}/cards")
+    public ResponseEntity<ApiResponse<List<InventoryDto.CardDetailDto>>> getBatchCards(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(inventoryService.getBatchCards(id)));
+    }
+
+    @GetMapping("/batches/{id}/ranges")
+    public ResponseEntity<ApiResponse<List<InventoryDto.BatchSerialRangeDto>>> getBatchSerialRanges(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(inventoryService.getBatchSerialRanges(id)));
+    }
+
+    @GetMapping("/batches/lot/{batchNumber}/ranges")
+    public ResponseEntity<ApiResponse<List<InventoryDto.BatchSerialRangeDto>>> getLotSerialRanges(@PathVariable String batchNumber) {
+        return ResponseEntity.ok(ApiResponse.success(inventoryService.getLotSerialRanges(batchNumber)));
+    }
+
+    @GetMapping("/batches/lot/{batchNumber}/cards")
+    public ResponseEntity<ApiResponse<List<InventoryDto.CardDetailDto>>> getLotCards(@PathVariable String batchNumber) {
+        return ResponseEntity.ok(ApiResponse.success(inventoryService.getLotCards(batchNumber)));
+    }
+
     @PostMapping("/batches/generate")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<InventoryDto.BatchSummaryDto>> generateBatch(
