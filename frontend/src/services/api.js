@@ -90,5 +90,14 @@ export const reportService = {
   getFinancialReport: (params) => api.get('/reports/financial', { params }),
 };
 
+export const campaignService = {
+  getCampaigns: (params) => api.get('/campaigns', { params }),
+  getCampaignById: (id) => api.get(`/campaigns/${id}`),
+  createCampaignExpense: (data) => api.post('/campaigns', data),
+  addCardExpenses: (id, data) => api.post(`/campaigns/${id}/items`, data),
+  updateCampaign: (id, data) => api.put(`/campaigns/${id}`, data),
+  getCalculationSummary: (params) => api.get('/campaigns/summary', { params }),
+};
 
 export default api;
+

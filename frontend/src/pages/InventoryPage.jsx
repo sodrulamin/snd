@@ -23,6 +23,7 @@ import {
   Loader2,
   CreditCard,
   Eye,
+  Megaphone,
   X
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
@@ -1029,12 +1030,12 @@ export default function InventoryPage() {
 
       {/* Lot Serial Details Modal */}
       {selectedLotForDetails && createPortal(
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
           <div 
             className="fixed inset-0"
             onClick={() => setSelectedLotForDetails(null)}
           />
-          <div className="relative bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-4xl p-6 shadow-2xl my-8 z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+          <div className="relative bg-slate-900/75 backdrop-blur-2xl border border-slate-700/60 rounded-3xl w-full max-w-4xl p-6 shadow-2xl my-8 z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
             {/* Modal Header */}
             <div className="flex items-start justify-between pb-4 border-b border-slate-800 shrink-0">
               <div className="flex items-center gap-3">
@@ -1065,26 +1066,32 @@ export default function InventoryPage() {
             </div>
 
             {/* Quick Stats Banner */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3 shrink-0">
-              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 py-3 shrink-0">
+              <div className="p-3 rounded-xl bg-slate-950/40 border border-slate-800/60 text-center">
                 <span className="text-[11px] text-slate-400 uppercase font-semibold">Total Cards</span>
                 <p className="text-base font-bold text-white font-mono mt-0.5">
                   {lotRanges.reduce((acc, r) => acc + (r.quantity || 0), 0)}
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
+              <div className="p-3 rounded-xl bg-slate-950/40 border border-slate-800/60 text-center">
                 <span className="text-[11px] text-teal-400 uppercase font-semibold">In Stock</span>
                 <p className="text-base font-bold text-teal-300 font-mono mt-0.5">
                   {lotRanges.filter(r => r.status === 'IN_STOCK').reduce((acc, r) => acc + (r.quantity || 0), 0)}
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
+              <div className="p-3 rounded-xl bg-slate-950/40 border border-slate-800/60 text-center">
+                <span className="text-[11px] text-purple-400 uppercase font-semibold">Campaign / Use</span>
+                <p className="text-base font-bold text-purple-300 font-mono mt-0.5">
+                  {lotRanges.filter(r => r.status === 'CAMPAIGN' || r.status === 'INTERNAL_USE').reduce((acc, r) => acc + (r.quantity || 0), 0)}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-950/40 border border-slate-800/60 text-center">
                 <span className="text-[11px] text-amber-400 uppercase font-semibold">Allocated / Sold</span>
                 <p className="text-base font-bold text-amber-300 font-mono mt-0.5">
                   {lotRanges.filter(r => r.status === 'SOLD' || r.status === 'ALLOCATED').reduce((acc, r) => acc + (r.quantity || 0), 0)}
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
+              <div className="p-3 rounded-xl bg-slate-950/40 border border-slate-800/60 text-center">
                 <span className="text-[11px] text-indigo-400 uppercase font-semibold">Unit Price</span>
                 <p className="text-base font-bold text-indigo-300 font-mono mt-0.5">
                   ৳{Number(selectedLotForDetails.wholesalePrice || selectedLotForDetails.faceValue || 0).toFixed(0)}
@@ -1092,33 +1099,33 @@ export default function InventoryPage() {
               </div>
             </div>
 
-            {/* Modal Filters */}
-            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-800 shrink-0">
+            {/* Modal Filters & Action */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/60 shrink-0">
               <div className="text-xs text-slate-400 flex items-center gap-1.5">
                 <Hash className="w-3.5 h-3.5 text-teal-400" />
                 <span>Inventory Ranges breakdown for Lot <span className="font-mono text-white font-semibold">{selectedLotForDetails.batchNumber}</span></span>
               </div>
 
               <div className="flex items-center gap-1.5 text-xs">
-                {['ALL', 'IN_STOCK', 'SOLD'].map((st) => (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => setStatusFilter(st)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                      statusFilter === st
-                        ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40'
-                        : 'bg-slate-950/60 text-slate-400 hover:text-slate-200 border border-slate-800'
-                    }`}
-                  >
-                    {st === 'ALL' ? 'All Ranges' : st === 'IN_STOCK' ? 'In Stock' : 'Sold / Allocated'}
-                  </button>
-                ))}
+                  {['ALL', 'IN_STOCK', 'CAMPAIGN', 'SOLD'].map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setStatusFilter(st)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                        statusFilter === st
+                          ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40'
+                          : 'bg-slate-950/40 text-slate-400 hover:text-slate-200 border border-slate-800/60'
+                      }`}
+                    >
+                      {st === 'ALL' ? 'All Ranges' : st === 'IN_STOCK' ? 'In Stock' : st === 'CAMPAIGN' ? 'Campaign / Use' : 'Sold / Allocated'}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
             {/* Serial Ranges Table */}
-            <div className="flex-1 overflow-y-auto mt-3 border border-slate-800 rounded-2xl">
+            <div className="flex-1 overflow-y-auto mt-3 border border-slate-800/60 rounded-2xl bg-slate-950/30">
               {loadingRanges ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400">
                   <Loader2 className="w-6 h-6 animate-spin text-teal-400" />
@@ -1126,7 +1133,7 @@ export default function InventoryPage() {
                 </div>
               ) : (
                 <table className="w-full text-left text-xs min-w-[700px]">
-                  <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800 sticky top-0 z-10 whitespace-nowrap">
+                  <thead className="bg-slate-950/80 backdrop-blur-md text-slate-400 font-semibold border-b border-slate-800/60 sticky top-0 z-10 whitespace-nowrap">
                     <tr>
                       <th className="p-3 text-center w-12">SL</th>
                       <th className="p-3 whitespace-nowrap">Start Serial</th>
@@ -1140,18 +1147,21 @@ export default function InventoryPage() {
                   <tbody className="divide-y divide-slate-800/60">
                     {lotRanges
                       .filter((r) => {
-                        return statusFilter === 'ALL' || (statusFilter === 'SOLD' ? (r.status === 'SOLD' || r.status === 'ALLOCATED') : r.status === statusFilter);
+                        if (statusFilter === 'ALL') return true;
+                        if (statusFilter === 'SOLD') return r.status === 'SOLD' || r.status === 'ALLOCATED';
+                        if (statusFilter === 'CAMPAIGN') return r.status === 'CAMPAIGN' || r.status === 'INTERNAL_USE';
+                        return r.status === statusFilter;
                       })
                       .map((r, idx) => (
                         <tr key={idx} className="hover:bg-slate-800/30 transition font-mono">
                           <td className="p-3 text-center text-slate-500 text-[11px] whitespace-nowrap">{idx + 1}</td>
                           <td className="p-3 font-semibold text-white whitespace-nowrap">
-                            <span className="px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800 font-mono tracking-wide inline-block whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-md bg-slate-950/60 border border-slate-800/60 font-mono tracking-wide inline-block whitespace-nowrap">
                               {r.startSerialNumber}
                             </span>
                           </td>
                           <td className="p-3 font-semibold text-white whitespace-nowrap">
-                            <span className="px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800 font-mono tracking-wide inline-block whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-md bg-slate-950/60 border border-slate-800/60 font-mono tracking-wide inline-block whitespace-nowrap">
                               {r.endSerialNumber}
                             </span>
                           </td>
@@ -1164,6 +1174,8 @@ export default function InventoryPage() {
                             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
                               r.status === 'IN_STOCK'
                                 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                                : r.status === 'CAMPAIGN' || r.status === 'INTERNAL_USE'
+                                ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
                                 : r.status === 'SOLD' || r.status === 'ALLOCATED'
                                 ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                                 : 'bg-slate-800 text-slate-400'
@@ -1172,6 +1184,11 @@ export default function InventoryPage() {
                                 <>
                                   <CheckCircle2 className="w-2.5 h-2.5 shrink-0" />
                                   <span>IN STOCK</span>
+                                </>
+                              ) : r.status === 'CAMPAIGN' || r.status === 'INTERNAL_USE' ? (
+                                <>
+                                  <Megaphone className="w-2.5 h-2.5 shrink-0" />
+                                  <span>{r.status === 'INTERNAL_USE' ? 'INTERNAL USE' : 'CAMPAIGN'}</span>
                                 </>
                               ) : (
                                 <>

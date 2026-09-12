@@ -43,4 +43,5 @@ public interface RechargeCardRepository extends JpaRepository<RechargeCard, Long
 
     List<RechargeCard> findByOrderId(Long orderId);
     List<RechargeCard> findByBatchId(Long batchId);
+    List<RechargeCard> findByCampaignExpenseId(Long campaignExpenseId);
 }

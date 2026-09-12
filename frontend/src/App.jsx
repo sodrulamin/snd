@@ -12,6 +12,7 @@ import DistributorsPage from './pages/DistributorsPage';
 import ReportsPage from './pages/ReportsPage';
 import CardDetailsPage from './pages/CardDetailsPage';
 import ThemeSettingsPage from './pages/ThemeSettingsPage';
+import CampaignExpensesPage from './pages/CampaignExpensesPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -55,6 +56,7 @@ export default function App() {
                 <Route path="inventory" element={<InventoryPage />} />
                 <Route path="sales" element={<SalesPage />} />
                 <Route path="distributors" element={<DistributorsPage />} />
+                <Route path="campaigns" element={<CampaignExpensesPage />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="cards" element={<CardDetailsPage />} />
                 <Route path="settings" element={<Navigate to="/settings/theme" replace />} />

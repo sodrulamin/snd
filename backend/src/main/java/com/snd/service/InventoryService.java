@@ -279,7 +279,7 @@ public class InventoryService {
 
                 String status = card != null && card.getStatus() != null 
                     ? card.getStatus() 
-                    : (batch.getStatus() == BatchStatus.SOLD ? "SOLD" : "IN_STOCK");
+                    : (batch.getStatus() != null && batch.getStatus() != BatchStatus.AVAILABLE ? batch.getStatus().name() : "IN_STOCK");
 
                 result.add(InventoryDto.CardDetailDto.builder()
                     .id(card != null ? card.getId() : null)

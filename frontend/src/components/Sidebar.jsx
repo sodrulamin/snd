@@ -14,7 +14,8 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
-  X
+  X,
+  Megaphone
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
@@ -161,6 +162,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Manage Inventory', path: '/inventory', icon: Layers },
     { name: 'Sales & Orders', path: '/sales', icon: ShoppingCart },
+    { name: 'Campaigns & Expenses', path: '/campaigns', icon: Megaphone },
     { name: 'Distributors', path: '/distributors', icon: Users },
     { name: 'Reports & Revenue', path: '/reports', icon: BarChart3 },
     { name: 'Manage Card', path: '/cards', icon: Tag },

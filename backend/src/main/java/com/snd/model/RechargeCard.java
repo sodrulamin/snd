@@ -39,7 +39,7 @@ public class RechargeCard {
     private String pinMasked;
 
     @Column(nullable = false, length = 50)
-    private String status; // IN_STOCK, ALLOCATED, SOLD, REDEEMED, VOID
+    private String status; // IN_STOCK, ALLOCATED, SOLD, CAMPAIGN, INTERNAL_USE, REDEEMED, VOID
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "distributor_id")
@@ -48,6 +48,10 @@ public class RechargeCard {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
     private SalesOrder order;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "campaign_expense_id")
+    private CampaignExpense campaignExpense;
 
     @Column(name = "sold_at")
     private LocalDateTime soldAt;
