@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -26,6 +27,7 @@ public class DistributorService {
     private final SalesOrderRepository salesOrderRepository;
     private final DistributorTransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SMSService smsService;
 
     public List<DistributorDto.DistributorResponse> getAllDistributors() {
         return userRepository.findByRole("DISTRIBUTOR").stream()
@@ -64,6 +66,12 @@ public class DistributorService {
                 .build();
 
         distributor = userRepository.save(distributor);
+
+        if (StringUtils.hasText(distributor.getPhone())) {
+            String message = smsService.createDistributorOnboardMessage(distributor);
+            smsService.sendSms(distributor.getPhone(), message);
+        }
+
         return mapToDistributorResponse(distributor);
     }
 

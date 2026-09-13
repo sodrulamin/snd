@@ -29,6 +29,11 @@ app:
     expiration-ms: ${APP_JWT_EXPIRATION_MS:86400000}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173,http://localhost:80,http://localhost}
+  sms:
+    base-url: ${APP_SMS_BASE_URL:https://localhost:5684/sendtext}
+    api-key: ${APP_SMS_API_KEY:xxxxxxxxxx}
+    secret-key: ${APP_SMS_SECRET_KEY:xxxxxxxxxxxx}
+    caller-id: ${APP_SMS_CALLER_ID:xxxxxxxxxxxxx}
 
 logging:
   pattern:
