@@ -186,7 +186,7 @@ export default function Sidebar({ isOpen, onClose }) {
       {/* Sidebar Aside (Sticky on desktop, Off-canvas drawer on mobile) */}
       <aside 
         style={{ '--sidebar-w': `${width}px` }}
-        className={`fixed lg:sticky top-0 left-0 z-50 lg:z-40 h-screen bg-slate-900/95 lg:bg-slate-900/90 backdrop-blur-xl border-r border-slate-800 flex flex-col select-none relative ${
+        className={`fixed lg:sticky top-0 left-0 z-50 lg:z-40 h-screen bg-slate-900/95 lg:bg-slate-900/90 backdrop-blur-xl border-r border-slate-800 flex flex-col select-none ${
           isDragging ? 'transition-none' : 'transition-all duration-300 ease-in-out'
         } ${
           isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
