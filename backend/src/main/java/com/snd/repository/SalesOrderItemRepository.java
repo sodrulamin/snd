@@ -8,4 +8,5 @@ import java.util.List;
 @Repository
 public interface SalesOrderItemRepository extends JpaRepository<SalesOrderItem, Long> {
     List<SalesOrderItem> findByOrderId(Long orderId);
+    List<SalesOrderItem> findByBatchId(Long batchId);
 }

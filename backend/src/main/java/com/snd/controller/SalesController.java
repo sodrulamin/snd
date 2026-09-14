@@ -55,4 +55,11 @@ public class SalesController {
     public ResponseEntity<ApiResponse<SalesDto.InvoiceDto>> getInvoice(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(salesService.getInvoice(id)));
     }
+
+    @DeleteMapping("/orders/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteOrder(@PathVariable Long id) {
+        salesService.deleteOrder(id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Order deleted successfully and items returned to available inventory"));
+    }
 }

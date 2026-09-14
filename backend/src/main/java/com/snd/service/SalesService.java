@@ -36,6 +36,7 @@ public class SalesService {
     private final CardDenominationRepository denominationRepository;
     private final CardBatchRepository batchRepository;
     private final DistributorTransactionRepository transactionRepository;
+    private final CampaignExpenseItemRepository campaignExpenseItemRepository;
 
     @Transactional
     public SalesDto.SalesOrderResponse createOrder(SalesDto.CreateOrderRequest request, String createdByUsername) {
@@ -341,6 +342,235 @@ public class SalesService {
                 .companyEmail("billing@iptspglobal.bd")
                 .order(mapToOrderResponse(order))
                 .build();
+    }
+
+    @Transactional
+    public void deleteOrder(Long orderId) {
+        SalesOrder order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
+        // 1. Validation: Ensure none of the cards in this order have been redeemed
+        List<RechargeCard> cards = rechargeCardRepository.findByOrderId(order.getId());
+        boolean hasRedeemed = cards.stream().anyMatch(c -> "REDEEMED".equalsIgnoreCase(c.getStatus()));
+        if (hasRedeemed) {
+            throw new IllegalStateException("Cannot delete order '" + order.getOrderNumber() + "' because one or more cards have already been redeemed by customers.");
+        }
+
+        // 2. Revert distributor wallet balance if order was paid with BALANCE_CREDIT
+        if (order.getFinalAmount() != null && order.getFinalAmount().compareTo(BigDecimal.ZERO) > 0) {
+            User distributor = order.getDistributor();
+            if (distributor != null) {
+                BigDecimal prevBalance = distributor.getBalance() != null ? distributor.getBalance() : BigDecimal.ZERO;
+                BigDecimal newBalance = prevBalance.add(order.getFinalAmount());
+                distributor.setBalance(newBalance);
+                userRepository.save(distributor);
+
+                DistributorTransaction txn = DistributorTransaction.builder()
+                        .distributor(distributor)
+                        .transactionType("ORDER_REFUND")
+                        .amount(order.getFinalAmount())
+                        .previousBalance(prevBalance)
+                        .newBalance(newBalance)
+                        .referenceType("ORDER_CANCELLATION")
+                        .referenceId(order.getOrderNumber())
+                        .notes("Refund for deleted Order " + order.getOrderNumber() + " [Restored " + order.getTotalCardsCount() + " cards to inventory]")
+                        .build();
+                transactionRepository.save(txn);
+            }
+        }
+
+        // 3. Mark all cards as IN_STOCK and disassociate them from order and distributor
+        if (!cards.isEmpty()) {
+            for (RechargeCard card : cards) {
+                card.setStatus("IN_STOCK");
+                card.setOrder(null);
+                card.setDistributor(null);
+                card.setSoldAt(null);
+            }
+            rechargeCardRepository.saveAll(cards);
+            rechargeCardRepository.flush();
+        }
+
+        // 4. Restore sold CardBatches to AVAILABLE status and collect affected denomination IDs
+        List<SalesOrderItem> items = orderItemRepository.findByOrderId(order.getId());
+        List<Long> affectedDenominationIds = new ArrayList<>();
+        List<CardBatch> batchesToRestore = new ArrayList<>();
+
+        for (SalesOrderItem item : items) {
+            if (item.getDenomination() != null && !affectedDenominationIds.contains(item.getDenomination().getId())) {
+                affectedDenominationIds.add(item.getDenomination().getId());
+            }
+            if (item.getBatch() != null) {
+                CardBatch b = item.getBatch();
+                b.setStatus(BatchStatus.AVAILABLE);
+                batchesToRestore.add(b);
+            }
+        }
+
+        if (!batchesToRestore.isEmpty()) {
+            batchRepository.saveAll(batchesToRestore);
+            batchRepository.flush();
+        }
+
+        // 5. Delete order items and the order itself
+        orderItemRepository.deleteAll(items);
+        orderRepository.delete(order);
+        orderRepository.flush();
+
+        log.info("Order {} deleted successfully. Cards restored to IN_STOCK. Starting sequential inventory merge...", order.getOrderNumber());
+
+        // 6. Merge sequential available inventory batches for each affected denomination
+        for (Long denomId : affectedDenominationIds) {
+            mergeSequentialBatches(denomId);
+        }
+    }
+
+    /**
+     * Finds and merges all AVAILABLE batches for a denomination whose serial ranges are sequential.
+     * Repoints any individual cards, order items, and campaign items before deleting the merged secondary batches.
+     */
+    private void mergeSequentialBatches(Long denominationId) {
+        CardDenomination denomination = denominationRepository.findById(denominationId).orElse(null);
+        if (denomination == null) return;
+
+        BigDecimal unitWholesale = denomination.getWholesalePrice() != null
+                ? denomination.getWholesalePrice()
+                : (denomination.getRetailPrice() != null ? denomination.getRetailPrice() : denomination.getFaceValue());
+
+        Pattern pattern = Pattern.compile("^(.*?)(\\d+)$");
+
+        boolean mergedAny;
+        do {
+            mergedAny = false;
+            List<CardBatch> availableBatches = batchRepository.findByDenominationIdAndStatus(denominationId, BatchStatus.AVAILABLE);
+            if (availableBatches.size() < 2) {
+                break;
+            }
+
+            // Parse valid serial ranges
+            List<BatchRange> ranges = new ArrayList<>();
+            for (CardBatch b : availableBatches) {
+                if (!StringUtils.hasText(b.getStartSerialNumber()) || !StringUtils.hasText(b.getEndSerialNumber())) {
+                    continue;
+                }
+                Matcher mStart = pattern.matcher(b.getStartSerialNumber().trim());
+                Matcher mEnd = pattern.matcher(b.getEndSerialNumber().trim());
+                if (mStart.matches() && mEnd.matches() && mStart.group(1).equals(mEnd.group(1))) {
+                    String prefix = mStart.group(1);
+                    long startNum = Long.parseLong(mStart.group(2));
+                    long endNum = Long.parseLong(mEnd.group(2));
+                    int padLen = Math.max(mStart.group(2).length(), mEnd.group(2).length());
+                    ranges.add(new BatchRange(b, prefix, startNum, endNum, padLen));
+                }
+            }
+
+            // Look for any two available batches that are contiguous / sequential
+            for (int i = 0; i < ranges.size(); i++) {
+                BatchRange r1 = ranges.get(i);
+                for (int j = i + 1; j < ranges.size(); j++) {
+                    BatchRange r2 = ranges.get(j);
+
+                    // Must share the exact same prefix
+                    if (!r1.prefix.equals(r2.prefix)) {
+                        continue;
+                    }
+
+                    // Check if r1 and r2 are sequential:
+                    // r1 immediately precedes r2 OR r2 immediately precedes r1 OR overlapping
+                    boolean contiguous = (r1.endNum + 1 == r2.startNum) || (r2.endNum + 1 == r1.startNum);
+                    boolean overlapping = (r1.startNum <= r2.endNum && r2.startNum <= r1.endNum);
+
+                    if (!contiguous && !overlapping) {
+                        continue;
+                    }
+
+                    // Found sequential pair! Primary keeps earlier start number
+                    BatchRange primary = (r1.startNum <= r2.startNum) ? r1 : r2;
+                    BatchRange secondary = (primary == r1) ? r2 : r1;
+
+                    long newStart = Math.min(r1.startNum, r2.startNum);
+                    long newEnd = Math.max(r1.endNum, r2.endNum);
+                    int padLen = Math.max(r1.padLen, r2.padLen);
+                    int newQty = (int) (newEnd - newStart + 1);
+
+                    CardBatch primaryBatch = primary.batch;
+                    CardBatch secondaryBatch = secondary.batch;
+
+                    String oldPrimaryStart = primaryBatch.getStartSerialNumber();
+                    String oldPrimaryEnd = primaryBatch.getEndSerialNumber();
+                    String oldSecondaryStart = secondaryBatch.getStartSerialNumber();
+                    String oldSecondaryEnd = secondaryBatch.getEndSerialNumber();
+
+                    primaryBatch.setStartSerialNumber(primary.prefix + String.format("%0" + padLen + "d", newStart));
+                    primaryBatch.setEndSerialNumber(primary.prefix + String.format("%0" + padLen + "d", newEnd));
+                    primaryBatch.setQuantity(newQty);
+                    primaryBatch.setTotalFaceValue(unitWholesale.multiply(BigDecimal.valueOf(newQty)));
+
+                    // 1. Repoint any cards linked to secondaryBatch to primaryBatch
+                    List<RechargeCard> secondaryCards = rechargeCardRepository.findByBatchId(secondaryBatch.getId());
+                    if (!secondaryCards.isEmpty()) {
+                        for (RechargeCard c : secondaryCards) {
+                            c.setBatch(primaryBatch);
+                        }
+                        rechargeCardRepository.saveAll(secondaryCards);
+                        rechargeCardRepository.flush();
+                    }
+
+                    // 2. Repoint any order items that referenced secondaryBatch
+                    List<SalesOrderItem> secondaryOrderItems = orderItemRepository.findByBatchId(secondaryBatch.getId());
+                    if (secondaryOrderItems != null && !secondaryOrderItems.isEmpty()) {
+                        for (SalesOrderItem soi : secondaryOrderItems) {
+                            soi.setBatch(primaryBatch);
+                        }
+                        orderItemRepository.saveAll(secondaryOrderItems);
+                        orderItemRepository.flush();
+                    }
+
+                    // 3. Repoint any campaign items that referenced secondaryBatch
+                    List<CampaignExpenseItem> secondaryCampaignItems = campaignExpenseItemRepository.findByBatchId(secondaryBatch.getId());
+                    if (secondaryCampaignItems != null && !secondaryCampaignItems.isEmpty()) {
+                        for (CampaignExpenseItem cei : secondaryCampaignItems) {
+                            cei.setBatch(primaryBatch);
+                        }
+                        campaignExpenseItemRepository.saveAll(secondaryCampaignItems);
+                        campaignExpenseItemRepository.flush();
+                    }
+
+                    batchRepository.save(primaryBatch);
+                    batchRepository.delete(secondaryBatch);
+                    batchRepository.flush();
+
+                    log.info("Successfully merged sequential inventory for {}: [{}] ({} ~ {}) with [{}] ({} ~ {}) => Combined Lot: [{}] ({} ~ {}) (Total: {} cards)",
+                            denomination.getName(),
+                            primaryBatch.getBatchNumber(), oldPrimaryStart, oldPrimaryEnd,
+                            secondaryBatch.getBatchNumber(), oldSecondaryStart, oldSecondaryEnd,
+                            primaryBatch.getBatchNumber(), primaryBatch.getStartSerialNumber(), primaryBatch.getEndSerialNumber(),
+                            newQty);
+
+                    mergedAny = true;
+                    break;
+                }
+                if (mergedAny) {
+                    break;
+                }
+            }
+        } while (mergedAny);
+    }
+
+    private static class BatchRange {
+        final CardBatch batch;
+        final String prefix;
+        final long startNum;
+        final long endNum;
+        final int padLen;
+
+        BatchRange(CardBatch batch, String prefix, long startNum, long endNum, int padLen) {
+            this.batch = batch;
+            this.prefix = prefix;
+            this.startNum = startNum;
+            this.endNum = endNum;
+            this.padLen = padLen;
+        }
     }
 
     private SalesDto.SalesOrderResponse mapToOrderResponse(SalesOrder o) {

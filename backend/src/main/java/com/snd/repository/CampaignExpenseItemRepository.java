@@ -13,6 +13,7 @@ import java.util.List;
 public interface CampaignExpenseItemRepository extends JpaRepository<CampaignExpenseItem, Long> {
 
     List<CampaignExpenseItem> findByCampaignExpenseId(Long campaignExpenseId);
+    List<CampaignExpenseItem> findByBatchId(Long batchId);
 
     @Query("SELECT i.denomination.id, i.denomination.name, i.denomination.code, " +
            "COALESCE(SUM(i.quantity), 0), COALESCE(SUM(i.subtotalWholesaleCost), 0), COALESCE(SUM(i.subtotalFaceValue), 0) " +

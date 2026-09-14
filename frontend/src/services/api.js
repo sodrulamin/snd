@@ -70,6 +70,7 @@ export const salesService = {
   getOrders: (params) => api.get('/sales/orders', { params }),
   getOrderById: (id) => api.get(`/sales/orders/${id}`),
   getInvoice: (id) => api.get(`/sales/orders/${id}/invoice`),
+  deleteOrder: (id) => api.delete(`/sales/orders/${id}`),
 };
 
 export const distributorService = {

@@ -34,6 +34,7 @@ import { usePageLoading } from '../context/PageLoadingContext';
 
 export default function SalesPage() {
   const { setPageLoading } = usePageLoading();
+  const { user, isAdmin } = useAuth();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const startDateRef = useRef(null);
@@ -45,6 +46,12 @@ export default function SalesPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // Delete Order State
+  const [deletingOrder, setDeletingOrder] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -297,8 +304,6 @@ export default function SalesPage() {
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { isAdmin } = useAuth();
-
   // Helper to fetch and pre-fill the first available serial range for a denomination
   const prefillSerialRangeForItem = async (idx, denomId, currentItems = null) => {
     if (!denomId) return;
@@ -402,6 +407,24 @@ export default function SalesPage() {
     } finally {
       setLoading(false);
       setPageLoading(false);
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!deletingOrder) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await salesService.deleteOrder(deletingOrder.id);
+      const orderNum = deletingOrder.orderNumber;
+      setDeletingOrder(null);
+      setSuccessMessage(res.data?.message || `Order ${orderNum} deleted and inventory successfully restored.`);
+      setTimeout(() => setSuccessMessage(null), 5000);
+      loadData(currentPage);
+    } catch (err) {
+      setDeleteError(err.response?.data?.message || err.message || 'Failed to delete order');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -685,6 +708,22 @@ export default function SalesPage() {
           </div>
         </div>
 
+        {/* Success Alert Banner */}
+        {successMessage && (
+          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center justify-between animate-fadeIn">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+              <span className="font-medium">{successMessage}</span>
+            </div>
+            <button
+              onClick={() => setSuccessMessage(null)}
+              className="text-emerald-400 hover:text-white p-1 rounded-lg transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Search & Filter Bar (Collapsible) */}
         {showFilters && (
           <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3 animate-fadeIn">
@@ -966,12 +1005,27 @@ export default function SalesPage() {
                     )}
                     {visibleColumns.actions && (
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleViewInvoice(o.id)}
-                          className="px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 hover:bg-teal-500/20 border border-teal-500/30 text-xs font-semibold flex items-center gap-1.5 ml-auto transition"
-                        >
-                          <Eye className="w-3.5 h-3.5" /> Invoice
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleViewInvoice(o.id)}
+                            className="px-2.5 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 hover:bg-teal-500/20 border border-teal-500/30 text-xs font-semibold flex items-center gap-1.5 transition"
+                            title="View Invoice"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> Invoice
+                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => {
+                                setDeletingOrder(o);
+                                setDeleteError(null);
+                              }}
+                              className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 text-xs font-semibold flex items-center transition"
+                              title="Delete Order & Return Items to Inventory"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -1268,6 +1322,84 @@ export default function SalesPage() {
           invoice={selectedInvoice}
           onClose={() => setSelectedInvoice(null)}
         />
+      )}
+
+      {/* Delete Order Confirmation Modal */}
+      {deletingOrder && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-slate-900 border border-red-500/30 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20 flex-shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Delete Sales Order</h3>
+                <p className="text-xs text-slate-400">Order will be removed and cards returned to available inventory</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2 text-xs font-mono">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Order #:</span>
+                <span className="text-teal-400 font-bold">{deletingOrder.orderNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Distributor:</span>
+                <span className="text-white font-semibold">{deletingOrder.distributorName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Cards Returned:</span>
+                <span className="text-white font-bold">{deletingOrder.totalCardsCount?.toLocaleString()} units</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Net Amount:</span>
+                <span className="text-emerald-400 font-bold">৳{Number(deletingOrder.finalAmount || 0).toFixed(2)}</span>
+              </div>
+              {deletingOrder.paymentMethod === 'BALANCE_CREDIT' && (
+                <div className="pt-1.5 border-t border-slate-800/80 text-[11px] text-teal-300 font-sans">
+                  ℹ️ Distributor wallet will be credited back with <strong>৳{Number(deletingOrder.finalAmount || 0).toFixed(2)}</strong>.
+                </div>
+              )}
+              {deletingOrder.serialRangesSummary && (
+                <div className="pt-1.5 border-t border-slate-800/80 text-[11px] text-slate-400 font-sans">
+                  <span className="text-slate-300 font-semibold block mb-0.5">Serial Range(s):</span>
+                  <span className="text-slate-400 font-mono text-[10px] break-all">{deletingOrder.serialRangesSummary}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-teal-500/10 border border-teal-500/20 text-[11px] text-teal-300 flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
+              <span>Restored cards will automatically be merged with existing available inventory if serial numbers are sequential.</span>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => { setDeletingOrder(null); setDeleteError(null); }}
+                className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-xs font-semibold transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDeleteOrder}
+                className="px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition shadow-lg shadow-red-500/20 disabled:opacity-50 flex items-center gap-2"
+              >
+                {isDeleting ? 'Deleting & Merging...' : 'Confirm Delete & Return Cards'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
