@@ -28,6 +28,7 @@ public class DistributorService {
     private final DistributorTransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
     private final SMSService smsService;
+    private final MailService mailService;
 
     public List<DistributorDto.DistributorResponse> getAllDistributors() {
         return userRepository.findByRole("DISTRIBUTOR").stream()
@@ -70,6 +71,10 @@ public class DistributorService {
         if (StringUtils.hasText(distributor.getPhone())) {
             String message = smsService.createDistributorOnboardMessage(distributor);
             smsService.sendSms(distributor.getPhone(), message);
+        }
+
+        if (StringUtils.hasText(distributor.getEmail())) {
+            mailService.sendDistributorOnboardEmail(distributor);
         }
 
         return mapToDistributorResponse(distributor);

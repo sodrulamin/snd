@@ -22,6 +22,25 @@ spring:
     baseline-on-migrate: true
     validate-on-migrate: false
     locations: classpath:db/migration
+  mail:
+    host: ${SPRING_MAIL_HOST:mail.ainext.site}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        transport:
+          protocol: smtp
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            trust: ${SPRING_MAIL_SSL_TRUST:mail.ainext.site}
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
 app:
   jwt:
@@ -34,6 +53,9 @@ app:
     api-key: ${APP_SMS_API_KEY:xxxxxxxxxx}
     secret-key: ${APP_SMS_SECRET_KEY:xxxxxxxxxxxx}
     caller-id: ${APP_SMS_CALLER_ID:xxxxxxxxxxxxx}
+  mail:
+    from: ${APP_MAIL_FROM:${SPRING_MAIL_USERNAME:}}
+    from-name: ${APP_MAIL_FROM_NAME:IPTSP Recharge Distribution}
 
 logging:
   pattern:

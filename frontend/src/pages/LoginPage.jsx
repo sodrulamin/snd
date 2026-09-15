@@ -20,7 +20,21 @@ export default function LoginPage() {
       await login(username, password);
       navigate('/');
     } catch (err) {
-      setError(err.message || 'Invalid username or password');
+      let backendMessage = 'Invalid username or password';
+      if (err.response?.data) {
+        const resData = err.response.data;
+        if (typeof resData === 'string') {
+          backendMessage = resData;
+        } else if (resData.data && typeof resData.data === 'object' && !Array.isArray(resData.data)) {
+          const fieldErrors = Object.values(resData.data).filter(Boolean);
+          backendMessage = fieldErrors.length > 0 ? fieldErrors.join(', ') : (resData.message || backendMessage);
+        } else if (resData.message) {
+          backendMessage = resData.message;
+        }
+      } else if (err.message) {
+        backendMessage = err.message;
+      }
+      setError(backendMessage);
     } finally {
       setLoading(false);
     }

@@ -31,16 +31,37 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   const login = async (username, password) => {
-    const res = await authService.login({ username, password });
-    if (res.data && res.data.success) {
-      const data = res.data.data;
-      setToken(data.token);
-      setUser(data);
-      localStorage.setItem('snd_token', data.token);
-      localStorage.setItem('snd_user', JSON.stringify(data));
-      return data;
+    try {
+      const res = await authService.login({ username, password });
+      if (res.data && res.data.success) {
+        const data = res.data.data;
+        setToken(data.token);
+        setUser(data);
+        localStorage.setItem('snd_token', data.token);
+        localStorage.setItem('snd_user', JSON.stringify(data));
+        return data;
+      }
+      throw new Error(res.data?.message || 'Login failed');
+    } catch (err) {
+      let message = 'Login failed';
+      if (err.response?.data) {
+        const resData = err.response.data;
+        if (typeof resData === 'string') {
+          message = resData;
+        } else if (resData.data && typeof resData.data === 'object' && !Array.isArray(resData.data)) {
+          const fieldErrors = Object.values(resData.data).filter(Boolean);
+          message = fieldErrors.length > 0 ? fieldErrors.join(', ') : (resData.message || message);
+        } else if (resData.message) {
+          message = resData.message;
+        }
+      } else if (err.message) {
+        message = err.message;
+      }
+
+      const enhancedError = new Error(message);
+      enhancedError.response = err.response;
+      throw enhancedError;
     }
-    throw new Error(res.data.message || 'Login failed');
   };
 
   const logout = () => {

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to IPTSP S&amp;D</title>
+  <style>
+    /* Client-specific resets */
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+    body { margin: 0; padding: 0; width: 100% !important; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0f19; color: #e2e8f0;">
+  <!-- Wrapper Table -->
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #0b0f19; padding: 30px 15px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card (max-width 600px) -->
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #131b2e; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);">
+          
+          <!-- Header Banner -->
+          <tr>
+            <td style="padding: 36px 36px 28px 36px; background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); text-align: center;">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td align="center">
+                    <div style="display: inline-block; background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 6px 16px; margin-bottom: 14px;">
+                      <span style="color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">
+                        Official Onboarding Notice
+                      </span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">
+                      Welcome to IPTSP S&amp;D
+                    </h1>
+                    <p style="margin: 0; color: #ccfbf1; font-size: 14px; font-weight: 500;">
+                      Recharge Card Sales &amp; Distribution Portal
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Body Content -->
+          <tr>
+            <td style="padding: 32px 36px 24px 36px;">
+              <!-- Greeting -->
+              <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 24px; color: #f8fafc;">
+                Hello <strong style="color: #2dd4bf;" th:text="${fullName != null ? fullName : 'Partner'}">Distributor Name</strong>,
+              </p>
+              <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 22px; color: #94a3b8;">
+                We are delighted to confirm that your official distributor account has been successfully created and activated in our distribution system.
+              </p>
+
+              <!-- Account Summary Card -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #14b8a6; border-radius: 12px; margin-bottom: 28px;">
+                <tr>
+                  <td style="padding: 20px 22px;">
+                    <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: #2dd4bf; letter-spacing: 0.5px; margin-bottom: 12px;">
+                      Account Summary &amp; Details
+                    </div>
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="font-size: 13px; line-height: 22px;">
+                      <tr>
+                        <td style="padding: 4px 0; color: #64748b; width: 140px;">Account Status:</td>
+                        <td style="padding: 4px 0;">
+                          <span style="display: inline-block; background-color: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700;" th:text="${status != null ? status : 'ACTIVE'}">
+                            ACTIVE
+                          </span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 4px 0; color: #64748b;">Registered Phone:</td>
+                        <td style="padding: 4px 0; color: #cbd5e1; font-family: Consolas, monospace;" th:text="${phone != null ? phone : 'N/A'}">+8801700000000</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 4px 0; color: #64748b;">Registered Email:</td>
+                        <td style="padding: 4px 0; color: #cbd5e1;" th:text="${email != null ? email : 'N/A'}">distributor@example.com</td>
+                      </tr>
+                      <tr th:if="${creditLimit != null and creditLimit != '0.00' and creditLimit != '0'}">
+                        <td style="padding: 4px 0; color: #64748b;">Credit Limit:</td>
+                        <td style="padding: 4px 0; color: #38bdf8; font-weight: 700;">
+                          BDT <span th:text="${creditLimit}">0.00</span>
+                        </td>
+                      </tr>
+                      <tr th:if="${address != null and !address.isEmpty()}">
+                        <td style="padding: 4px 0; color: #64748b;">Assigned Area:</td>
+                        <td style="padding: 4px 0; color: #cbd5e1;" th:text="${address}">Dhaka, Bangladesh</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 4px 0; color: #64748b;">Onboarded On:</td>
+                        <td style="padding: 4px 0; color: #cbd5e1;" th:text="${onboardedDate}">15 Sep 2026</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+
+              <!-- Help notice -->
+              <p style="margin: 0; font-size: 12px; line-height: 18px; color: #64748b; text-align: center;">
+                Need help getting started? Contact our distribution operations desk at
+                <a href="mailto:snd@ainext.site" style="color: #2dd4bf; text-decoration: none;">snd@ainext.site</a>
+                or call <strong style="color: #cbd5e1;">+8809643901704</strong>.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 36px; background-color: #0b1120; border-top: 1px solid #1e293b; text-align: center;">
+              <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 700; color: #94a3b8;">
+                IPTSP Recharge Sales &amp; Distribution System
+              </p>
+              <p style="margin: 0; font-size: 11px; line-height: 16px; color: #475569;">
+                This email was sent automatically by the IPTSP system to a registered partner account.<br>
+                Please do not reply directly to this automated notification.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
