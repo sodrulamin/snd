@@ -1,6 +1,7 @@
 package com.snd.service;
 
 import com.snd.dto.MailAttachment;
+import com.snd.dto.SalesDto;
 import com.snd.model.User;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
@@ -147,5 +148,83 @@ class MailServiceTest {
 
         assertThat(result).isFalse();
         verify(mailSender, never()).send(any(MimeMessage.class));
+    }
+
+    @Test
+    @DisplayName("sendHtmlMail with CC list should set CC recipients on MimeMessage")
+    void sendHtmlMail_withCcAndAttachments() throws Exception {
+        MimeMessage mimeMessage = new MimeMessage(Session.getInstance(new Properties()));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        byte[] pdfBytes = "%PDF-1.4 test invoice".getBytes(StandardCharsets.UTF_8);
+        MailAttachment attachment = MailAttachment.of("Invoice.pdf", pdfBytes, "application/pdf");
+
+        boolean result = mailService.sendHtmlMail(
+                "distributor@example.com",
+                List.of("admin@ainext.site", "distributor@example.com"), // duplicate to address should be filtered out
+                "Invoice Subject",
+                "<h1>Invoice Details</h1>",
+                List.of(attachment)
+        );
+
+        assertThat(result).isTrue();
+        verify(mailSender).send(mimeMessage);
+    }
+
+    @Test
+    @DisplayName("sendOrderConfirmationEmail should render order template and send email with PDF invoice and CC")
+    void sendOrderConfirmationEmail_success() throws Exception {
+        MimeMessage mimeMessage = new MimeMessage(Session.getInstance(new Properties()));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        when(templateEngine.process(eq("mail/order-placed"), any(Context.class)))
+                .thenReturn("<html><body>Order Confirmed</body></html>");
+
+        SalesDto.OrderItemDto item = SalesDto.OrderItemDto.builder()
+                .denominationName("Tk 100")
+                .batchNumber("LOT-100-01")
+                .serialRange("SN-0001 ~ SN-0500")
+                .unitFaceValue(BigDecimal.valueOf(100))
+                .quantity(500)
+                .itemDiscountPercent(BigDecimal.valueOf(5))
+                .subtotalFinal(BigDecimal.valueOf(47500))
+                .build();
+
+        SalesDto.SalesOrderResponse order = SalesDto.SalesOrderResponse.builder()
+                .orderNumber("ORD-20260916-001")
+                .distributorName("Gulshan Telecom")
+                .distributorEmail("gulshan@example.com")
+                .distributorPhone("+8801700000000")
+                .totalCardsCount(500)
+                .totalFaceValue(BigDecimal.valueOf(50000))
+                .discountPercentage(BigDecimal.valueOf(5))
+                .discountAmount(BigDecimal.valueOf(2500))
+                .finalAmount(BigDecimal.valueOf(47500))
+                .paymentMethod("BALANCE_CREDIT")
+                .paymentStatus("PAID")
+                .orderStatus("COMPLETED")
+                .createdAt(LocalDateTime.now())
+                .items(List.of(item))
+                .build();
+
+        User distributor = User.builder()
+                .id(1L)
+                .fullName("Gulshan Telecom")
+                .email("gulshan@example.com")
+                .build();
+
+        byte[] invoicePdf = "%PDF-1.4 simulated invoice bytes".getBytes(StandardCharsets.UTF_8);
+
+        CompletableFuture<Boolean> future = mailService.sendOrderConfirmationEmail(
+                order,
+                distributor,
+                "admin@ainext.site",
+                invoicePdf
+        );
+        Boolean result = future.get();
+
+        assertThat(result).isTrue();
+        verify(templateEngine).process(eq("mail/order-placed"), any(Context.class));
+        verify(mailSender).send(mimeMessage);
     }
 }

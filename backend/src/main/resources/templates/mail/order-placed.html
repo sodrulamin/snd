@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Confirmation - IPTSP S&amp;D</title>
+  <style>
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+    body { margin: 0; padding: 0; width: 100% !important; background-color: #0b0f19; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0f19; color: #e2e8f0;">
+  <!-- Wrapper Table -->
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #0b0f19; padding: 30px 15px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card (max-width 640px) -->
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 640px; background-color: #131b2e; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);">
+
+          <!-- Header Banner -->
+          <tr>
+            <td style="padding: 32px 36px 24px 36px; background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); text-align: center;">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td align="center">
+                    <div style="display: inline-block; background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; padding: 5px 14px; margin-bottom: 12px;">
+                      <span style="color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">
+                        Order Confirmed &amp; Dispatched
+                      </span>
+                    </div>
+                    <h1 style="margin: 0 0 6px 0; color: #ffffff; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
+                      Recharge Cards Allocated
+                    </h1>
+                    <p style="margin: 0; color: #ccfbf1; font-size: 13px; font-weight: 500;">
+                      Order #<span th:text="${orderNumber}">ORD-20260916-001</span>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Body Content -->
+          <tr>
+            <td style="padding: 28px 32px 24px 32px;">
+              <!-- Greeting -->
+              <p style="margin: 0 0 14px 0; font-size: 15px; line-height: 24px; color: #f8fafc;">
+                Hello <strong style="color: #2dd4bf;" th:text="${distributorName != null ? distributorName : 'Partner'}">Partner</strong>,
+              </p>
+              <p style="margin: 0 0 20px 0; font-size: 13px; line-height: 22px; color: #94a3b8;">
+                Your recharge card order has been successfully placed and processed. The serialized inventory cards listed below have been allocated to your account.
+              </p>
+
+              <!-- Order Summary Box -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #14b8a6; border-radius: 12px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 18px 20px;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #2dd4bf; letter-spacing: 0.5px; margin-bottom: 10px;">
+                      Order Details
+                    </div>
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="font-size: 13px; line-height: 22px;">
+                      <tr>
+                        <td style="padding: 3px 0; color: #64748b; width: 140px;">Order Number:</td>
+                        <td style="padding: 3px 0; color: #f1f5f9; font-family: Consolas, monospace; font-weight: 700;" th:text="${orderNumber}">ORD-20260916-001</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 3px 0; color: #64748b;">Order Date:</td>
+                        <td style="padding: 3px 0; color: #cbd5e1;" th:text="${orderDate}">16 Sep 2026</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 3px 0; color: #64748b;">Payment Method:</td>
+                        <td style="padding: 3px 0; color: #cbd5e1;" th:text="${paymentMethod}">BALANCE_CREDIT</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 3px 0; color: #64748b;">Payment Status:</td>
+                        <td style="padding: 3px 0;">
+                          <span style="display: inline-block; background-color: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700;" th:text="${paymentStatus}">
+                            PAID
+                          </span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 3px 0; color: #64748b;">Total Cards:</td>
+                        <td style="padding: 3px 0; color: #f8fafc; font-weight: 700;" th:text="${totalCardsCount} + ' cards'">500 cards</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 3px 0; color: #64748b;">Final Amount:</td>
+                        <td style="padding: 3px 0; color: #38bdf8; font-weight: 800; font-size: 15px;" th:text="'৳ ' + ${finalAmount}">৳ 47,500.00</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Allocated Serial Ranges Table -->
+              <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: #e2e8f0; letter-spacing: 0.5px; margin-bottom: 8px;">
+                Allocated Inventory Breakdown
+              </div>
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #0f172a; border: 1px solid #1e293b; border-radius: 10px; overflow: hidden; margin-bottom: 24px;">
+                <thead>
+                  <tr style="background-color: #1e293b; border-bottom: 1px solid #334155;">
+                    <th style="padding: 8px 12px; font-size: 11px; color: #94a3b8; text-align: left; font-weight: 600;">Denomination</th>
+                    <th style="padding: 8px 12px; font-size: 11px; color: #94a3b8; text-align: left; font-weight: 600;">Serial Range (From ~ To)</th>
+                    <th style="padding: 8px 12px; font-size: 11px; color: #94a3b8; text-align: right; font-weight: 600;">Qty</th>
+                    <th style="padding: 8px 12px; font-size: 11px; color: #94a3b8; text-align: right; font-weight: 600;">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="item, stat : ${items}" style="border-bottom: 1px solid #1e293b;">
+                    <td style="padding: 10px 12px; font-size: 12px; color: #f1f5f9; font-weight: 600;">
+                      <span th:text="${item.denominationName}">Tk 100</span>
+                      <span th:if="${item.batchNumber}" style="display: block; font-size: 10px; color: #64748b; font-family: Consolas, monospace;" th:text="'[' + ${item.batchNumber} + ']'">[BATCH-01]</span>
+                    </td>
+                    <td style="padding: 10px 12px; font-size: 11px; color: #2dd4bf; font-family: Consolas, monospace;">
+                      <span th:text="${item.serialRange != null ? item.serialRange : (item.startSerialNumber + ' ~ ' + item.endSerialNumber)}">SN-0001 ~ SN-0500</span>
+                    </td>
+                    <td style="padding: 10px 12px; font-size: 12px; color: #cbd5e1; text-align: right;" th:text="${item.quantity}">500</td>
+                    <td style="padding: 10px 12px; font-size: 12px; color: #f8fafc; font-weight: 700; text-align: right;" th:text="'৳ ' + ${item.subtotalFinal}">৳ 47,500.00</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <!-- Attachment Callout Box -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: rgba(20, 184, 166, 0.08); border: 1px dashed rgba(20, 184, 166, 0.4); border-radius: 12px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 16px 20px;">
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                      <tr>
+                        <td style="vertical-align: middle;">
+                          <div style="font-size: 13px; font-weight: 700; color: #2dd4bf; margin-bottom: 3px;">
+                            Official PDF Invoice Attached
+                          </div>
+                          <div style="font-size: 12px; color: #94a3b8; line-height: 18px;">
+                            The official sales invoice and serial voucher <strong style="color: #cbd5e1;" th:text="${invoiceFilename}">Invoice-ORD.pdf</strong> is attached to this email for your accounts and distribution records.
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Help / Support Notice -->
+              <p style="margin: 0; font-size: 12px; line-height: 18px; color: #64748b; text-align: center;">
+                Questions regarding this order? Contact our sales desk at
+                <a href="mailto:snd@ainext.site" style="color: #2dd4bf; text-decoration: none;">snd@ainext.site</a>
+                or call <strong style="color: #cbd5e1;">+8809643901704</strong>.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 22px 32px; background-color: #0b1120; border-top: 1px solid #1e293b; text-align: center;">
+              <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 700; color: #94a3b8;">
+                IPTSP Recharge Sales &amp; Distribution System
+              </p>
+              <p style="margin: 0; font-size: 11px; line-height: 16px; color: #475569;">
+                This automated notification was generated by the IPTSP Sales &amp; Distribution System.<br>
+                Please do not reply directly to this email.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

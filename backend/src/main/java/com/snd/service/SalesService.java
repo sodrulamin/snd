@@ -37,6 +37,8 @@ public class SalesService {
     private final CardBatchRepository batchRepository;
     private final DistributorTransactionRepository transactionRepository;
     private final CampaignExpenseItemRepository campaignExpenseItemRepository;
+    private final InvoicePdfService invoicePdfService;
+    private final MailService mailService;
 
     @Transactional
     public SalesDto.SalesOrderResponse createOrder(SalesDto.CreateOrderRequest request, String createdByUsername) {
@@ -310,7 +312,28 @@ public class SalesService {
             transactionRepository.save(txn);
         }
 
-        return mapToOrderResponse(order);
+        SalesDto.SalesOrderResponse response = mapToOrderResponse(order);
+
+        // Generate PDF Invoice and dispatch confirmation email with creator in CC
+        try {
+            SalesDto.InvoiceDto invoiceDto = getInvoice(order.getId());
+            byte[] invoicePdf = invoicePdfService.generateInvoicePdf(invoiceDto);
+
+            String creatorEmail = null;
+            if (createdByUsername != null && !createdByUsername.isBlank()) {
+                User creator = userRepository.findByUsername(createdByUsername).orElse(null);
+                if (creator != null && creator.getEmail() != null) {
+                    creatorEmail = creator.getEmail().trim();
+                }
+            }
+
+            mailService.sendOrderConfirmationEmail(response, distributor, creatorEmail, invoicePdf);
+        } catch (Exception e) {
+            log.error("Failed to generate invoice or dispatch order confirmation email for order '{}': {}",
+                    order.getOrderNumber(), e.getMessage(), e);
+        }
+
+        return response;
     }
 
     public Page<SalesDto.SalesOrderResponse> getOrders(Long distributorId, String status, String paymentMethod, LocalDateTime start, LocalDateTime end, String search, Pageable pageable) {

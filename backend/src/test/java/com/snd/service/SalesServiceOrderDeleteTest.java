@@ -42,6 +42,10 @@ class SalesServiceOrderDeleteTest {
     private DistributorTransactionRepository transactionRepository;
     @Mock
     private CampaignExpenseItemRepository campaignExpenseItemRepository;
+    @Mock
+    private InvoicePdfService invoicePdfService;
+    @Mock
+    private MailService mailService;
 
     @InjectMocks
     private SalesService salesService;

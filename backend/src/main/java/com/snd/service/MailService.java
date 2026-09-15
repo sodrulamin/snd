@@ -1,6 +1,7 @@
 package com.snd.service;
 
 import com.snd.dto.MailAttachment;
+import com.snd.dto.SalesDto;
 import com.snd.model.User;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -51,10 +52,14 @@ public class MailService {
      * @param to          recipient email address
      * @param subject     subject line
      * @param htmlContent HTML body
+     * @param to          recipient email address
+     * @param cc          optional CC recipient email addresses (can be null or empty)
+     * @param subject     subject line
+     * @param htmlContent HTML body
      * @param attachments optional list of attachments (can be null or empty)
      * @return true if sent successfully, false otherwise
      */
-    public boolean sendHtmlMail(String to, String subject, String htmlContent, List<MailAttachment> attachments) {
+    public boolean sendHtmlMail(String to, List<String> cc, String subject, String htmlContent, List<MailAttachment> attachments) {
         if (!StringUtils.hasText(to)) {
             log.warn("Cannot send email: recipient address is empty.");
             return false;
@@ -72,6 +77,19 @@ public class MailService {
             }
 
             helper.setTo(to.trim());
+
+            if (cc != null && !cc.isEmpty()) {
+                List<String> validCcs = cc.stream()
+                        .filter(StringUtils::hasText)
+                        .map(String::trim)
+                        .filter(c -> !c.equalsIgnoreCase(to.trim()))
+                        .distinct()
+                        .toList();
+                if (!validCcs.isEmpty()) {
+                    helper.setCc(validCcs.toArray(new String[0]));
+                }
+            }
+
             helper.setSubject(subject);
             helper.setText(htmlContent, true);
 
@@ -88,7 +106,7 @@ public class MailService {
             }
 
             mailSender.send(message);
-            log.info("Email successfully sent to '{}' with subject '{}'", to, subject);
+            log.info("Email successfully sent to '{}' (cc: {}) with subject '{}'", to, cc, subject);
             return true;
 
         } catch (MessagingException e) {
@@ -101,30 +119,38 @@ public class MailService {
     }
 
     /**
-     * Sends an HTML email with no attachments.
+     * Sends an HTML email with optional attachments without CC.
      */
-    public boolean sendHtmlMail(String to, String subject, String htmlContent) {
-        return sendHtmlMail(to, subject, htmlContent, Collections.emptyList());
+    public boolean sendHtmlMail(String to, String subject, String htmlContent, List<MailAttachment> attachments) {
+        return sendHtmlMail(to, Collections.emptyList(), subject, htmlContent, attachments);
     }
 
     /**
-     * Renders a Thymeleaf HTML template and sends the resulting email synchronously.
+     * Sends an HTML email with no attachments.
+     */
+    public boolean sendHtmlMail(String to, String subject, String htmlContent) {
+        return sendHtmlMail(to, Collections.emptyList(), subject, htmlContent, Collections.emptyList());
+    }
+
+    /**
+     * Renders a Thymeleaf HTML template and sends the resulting email synchronously with CC.
      *
      * @param to           recipient email address
+     * @param cc           optional CC recipient email addresses
      * @param subject      subject line
      * @param templatePath template path relative to templates directory (e.g. "mail/distributor-onboard")
      * @param variables    model variables passed to Thymeleaf template
      * @param attachments  optional list of attachments
      * @return true if sent successfully, false otherwise
      */
-    public boolean sendTemplateMail(String to, String subject, String templatePath, Map<String, Object> variables, List<MailAttachment> attachments) {
+    public boolean sendTemplateMail(String to, List<String> cc, String subject, String templatePath, Map<String, Object> variables, List<MailAttachment> attachments) {
         try {
             Context context = new Context();
             if (variables != null) {
                 context.setVariables(variables);
             }
             String htmlContent = templateEngine.process(templatePath, context);
-            return sendHtmlMail(to, subject, htmlContent, attachments);
+            return sendHtmlMail(to, cc, subject, htmlContent, attachments);
         } catch (Exception e) {
             log.error("Failed to process Thymeleaf template '{}' for recipient '{}': {}", templatePath, to, e.getMessage(), e);
             return false;
@@ -132,19 +158,34 @@ public class MailService {
     }
 
     /**
+     * Renders a Thymeleaf HTML template and sends the resulting email synchronously without CC.
+     */
+    public boolean sendTemplateMail(String to, String subject, String templatePath, Map<String, Object> variables, List<MailAttachment> attachments) {
+        return sendTemplateMail(to, Collections.emptyList(), subject, templatePath, variables, attachments);
+    }
+
+    /**
      * Renders a Thymeleaf HTML template and sends the resulting email without attachments.
      */
     public boolean sendTemplateMail(String to, String subject, String templatePath, Map<String, Object> variables) {
-        return sendTemplateMail(to, subject, templatePath, variables, Collections.emptyList());
+        return sendTemplateMail(to, Collections.emptyList(), subject, templatePath, variables, Collections.emptyList());
     }
 
     /**
      * Sends a template email asynchronously using the dedicated mail thread pool.
      */
     @Async("mailExecutor")
-    public CompletableFuture<Boolean> sendTemplateMailAsync(String to, String subject, String templatePath, Map<String, Object> variables, List<MailAttachment> attachments) {
-        boolean sent = sendTemplateMail(to, subject, templatePath, variables, attachments);
+    public CompletableFuture<Boolean> sendTemplateMailAsync(String to, List<String> cc, String subject, String templatePath, Map<String, Object> variables, List<MailAttachment> attachments) {
+        boolean sent = sendTemplateMail(to, cc, subject, templatePath, variables, attachments);
         return CompletableFuture.completedFuture(sent);
+    }
+
+    /**
+     * Sends a template email asynchronously without CC.
+     */
+    @Async("mailExecutor")
+    public CompletableFuture<Boolean> sendTemplateMailAsync(String to, String subject, String templatePath, Map<String, Object> variables, List<MailAttachment> attachments) {
+        return sendTemplateMailAsync(to, Collections.emptyList(), subject, templatePath, variables, attachments);
     }
 
     /**
@@ -212,5 +253,74 @@ public class MailService {
     @Async("mailExecutor")
     public CompletableFuture<Boolean> sendDistributorOnboardEmail(User distributor) {
         return sendDistributorOnboardEmail(distributor, null, Collections.emptyList());
+    }
+
+    /**
+     * Sends order confirmation email with attached PDF invoice to the distributor,
+     * keeping the logged-in order creator in CC.
+     *
+     * @param order        the sales order response details
+     * @param distributor  the distributor receiving the allocated cards
+     * @param creatorEmail email address of the logged-in user who placed the order (added to CC)
+     * @param invoicePdf   generated PDF invoice byte array
+     * @return CompletableFuture resolving to true if sent successfully
+     */
+    @Async("mailExecutor")
+    public CompletableFuture<Boolean> sendOrderConfirmationEmail(
+            SalesDto.SalesOrderResponse order,
+            User distributor,
+            String creatorEmail,
+            byte[] invoicePdf) {
+
+        if (order == null) {
+            log.warn("Order confirmation email skipped: order is null.");
+            return CompletableFuture.completedFuture(false);
+        }
+
+        String to = null;
+        if (distributor != null && StringUtils.hasText(distributor.getEmail())) {
+            to = distributor.getEmail().trim();
+        } else if (StringUtils.hasText(order.getDistributorEmail())) {
+            to = order.getDistributorEmail().trim();
+        }
+
+        if (!StringUtils.hasText(to)) {
+            log.warn("Order confirmation email skipped: recipient email is missing for order '{}'", order.getOrderNumber());
+            return CompletableFuture.completedFuture(false);
+        }
+
+        List<String> ccList = Collections.emptyList();
+        if (StringUtils.hasText(creatorEmail)) {
+            ccList = List.of(creatorEmail.trim());
+        }
+
+        String subject = "Order Confirmation & Invoice - " + order.getOrderNumber();
+        String invoiceFilename = "Invoice-" + order.getOrderNumber() + ".pdf";
+
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("orderNumber", order.getOrderNumber());
+        variables.put("distributorName", order.getDistributorName() != null ? order.getDistributorName() : (distributor != null ? distributor.getFullName() : "Partner"));
+        variables.put("orderDate", order.getCreatedAt() != null
+                ? order.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a"))
+                : java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")));
+        variables.put("paymentMethod", order.getPaymentMethod() != null ? order.getPaymentMethod() : "N/A");
+        variables.put("paymentStatus", order.getPaymentStatus() != null ? order.getPaymentStatus() : "PAID");
+        variables.put("orderStatus", order.getOrderStatus() != null ? order.getOrderStatus() : "COMPLETED");
+        variables.put("totalCardsCount", order.getTotalCardsCount() != null ? order.getTotalCardsCount() : 0);
+        variables.put("totalFaceValue", String.format("%,.2f", order.getTotalFaceValue() != null ? order.getTotalFaceValue() : BigDecimal.ZERO));
+        variables.put("discountAmount", String.format("%,.2f", order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO));
+        variables.put("finalAmount", String.format("%,.2f", order.getFinalAmount() != null ? order.getFinalAmount() : BigDecimal.ZERO));
+        variables.put("items", order.getItems() != null ? order.getItems() : Collections.emptyList());
+        variables.put("invoiceFilename", invoiceFilename);
+
+        List<MailAttachment> attachments = Collections.emptyList();
+        if (invoicePdf != null && invoicePdf.length > 0) {
+            attachments = List.of(MailAttachment.of(invoiceFilename, invoicePdf, "application/pdf"));
+        } else {
+            log.warn("No invoice PDF attached for order confirmation email '{}'", order.getOrderNumber());
+        }
+
+        boolean sent = sendTemplateMail(to, ccList, subject, "mail/order-placed", variables, attachments);
+        return CompletableFuture.completedFuture(sent);
     }
 }

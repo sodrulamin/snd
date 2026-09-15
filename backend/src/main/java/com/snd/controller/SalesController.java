@@ -2,6 +2,7 @@ package com.snd.controller;
 
 import com.snd.dto.ApiResponse;
 import com.snd.dto.SalesDto;
+import com.snd.service.InvoicePdfService;
 import com.snd.service.SalesService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import java.time.LocalDateTime;
 public class SalesController {
 
     private final SalesService salesService;
+    private final InvoicePdfService invoicePdfService;
 
     @PostMapping("/orders")
     @PreAuthorize("hasRole('ADMIN')")
@@ -54,6 +56,18 @@ public class SalesController {
     @GetMapping("/orders/{id}/invoice")
     public ResponseEntity<ApiResponse<SalesDto.InvoiceDto>> getInvoice(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(salesService.getInvoice(id)));
+    }
+
+    @GetMapping(value = "/orders/{id}/invoice/pdf", produces = "application/pdf")
+    public ResponseEntity<byte[]> getInvoicePdf(@PathVariable Long id) {
+        SalesDto.InvoiceDto invoice = salesService.getInvoice(id);
+        byte[] pdfBytes = invoicePdfService.generateInvoicePdf(invoice);
+        String filename = "Invoice-" + invoice.getOrder().getOrderNumber() + ".pdf";
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "application/pdf")
+                .body(pdfBytes);
     }
 
     @DeleteMapping("/orders/{id}")
