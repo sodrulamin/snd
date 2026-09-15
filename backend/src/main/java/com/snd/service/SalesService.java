@@ -336,11 +336,32 @@ public class SalesService {
         return response;
     }
 
-    public Page<SalesDto.SalesOrderResponse> getOrders(Long distributorId, String status, String paymentMethod, LocalDateTime start, LocalDateTime end, String search, Pageable pageable) {
+    public Page<SalesDto.SalesOrderResponse> getOrders(
+            List<Long> distributorIds,
+            String status,
+            List<String> paymentMethods,
+            List<Long> denominationIds,
+            LocalDateTime start,
+            LocalDateTime end,
+            String search,
+            Pageable pageable
+    ) {
         String searchParam = (search != null && !search.isBlank()) ? search.trim() : null;
         String statusParam = (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) ? status.trim() : null;
-        String paymentParam = (paymentMethod != null && !paymentMethod.isBlank() && !"ALL".equalsIgnoreCase(paymentMethod)) ? paymentMethod.trim() : null;
-        return orderRepository.filterOrders(distributorId, statusParam, paymentParam, start, end, searchParam, pageable).map(this::mapToOrderResponse);
+        List<Long> filterDistIds = (distributorIds != null && !distributorIds.isEmpty()) ? distributorIds : null;
+        List<String> filterPayments = (paymentMethods != null && !paymentMethods.isEmpty()) ? paymentMethods : null;
+        List<Long> filterDenomIds = (denominationIds != null && !denominationIds.isEmpty()) ? denominationIds : null;
+        return orderRepository.filterOrders(filterDistIds, statusParam, filterPayments, filterDenomIds, start, end, searchParam, pageable).map(this::mapToOrderResponse);
+    }
+
+    public Page<SalesDto.SalesOrderResponse> getOrders(Long distributorId, String status, String paymentMethod, List<Long> denominationIds, LocalDateTime start, LocalDateTime end, String search, Pageable pageable) {
+        List<Long> distIds = distributorId != null ? List.of(distributorId) : null;
+        List<String> payMethods = (paymentMethod != null && !paymentMethod.isBlank()) ? List.of(paymentMethod) : null;
+        return getOrders(distIds, status, payMethods, denominationIds, start, end, search, pageable);
+    }
+
+    public Page<SalesDto.SalesOrderResponse> getOrders(Long distributorId, String status, String paymentMethod, LocalDateTime start, LocalDateTime end, String search, Pageable pageable) {
+        return getOrders(distributorId, status, paymentMethod, null, start, end, search, pageable);
     }
 
     public SalesDto.SalesOrderResponse getOrderById(Long id) {

@@ -21,13 +21,17 @@ import {
   ChevronDown,
   ChevronUp,
   Columns3,
-  Check
+  Check,
+  CreditCard,
+  Users,
+  Wallet
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import InvoiceModal from '../components/InvoiceModal';
 import ColumnSelector from '../components/ColumnSelector';
 import SearchableDistributorSelect from '../components/SearchableDistributorSelect';
 import SearchableProductSelect from '../components/SearchableProductSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { salesService, distributorService, inventoryService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
@@ -55,9 +59,10 @@ export default function SalesPage() {
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterDistributorId, setFilterDistributorId] = useState('');
-  const [filterPaymentMethod, setFilterPaymentMethod] = useState('');
+  const [selectedDistributorIds, setSelectedDistributorIds] = useState([]);
+  const [selectedPaymentMethods, setSelectedPaymentMethods] = useState([]);
   const [filterOrderStatus, setFilterOrderStatus] = useState('');
+  const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [filterStartDate, setFilterStartDate] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
@@ -333,9 +338,10 @@ export default function SalesPage() {
       setLoading(true);
       const activeFilters = currentFilters !== null ? currentFilters : {
         search: searchQuery || undefined,
-        distributorId: filterDistributorId || undefined,
-        paymentMethod: filterPaymentMethod || undefined,
+        distributorIds: selectedDistributorIds.length > 0 ? selectedDistributorIds : undefined,
+        paymentMethods: selectedPaymentMethods.length > 0 ? selectedPaymentMethods : undefined,
         status: filterOrderStatus || undefined,
+        denominationIds: selectedItemIds.length > 0 ? selectedItemIds : undefined,
         startDate: filterStartDate ? filterStartDate + 'T00:00:00' : undefined,
         endDate: filterEndDate ? filterEndDate + 'T23:59:59' : undefined,
       };
@@ -366,11 +372,14 @@ export default function SalesPage() {
         salesService.getOrders({
           page,
           size: 15,
+          distributorIds: selectedDistributorIds.length > 0 ? selectedDistributorIds : undefined,
+          paymentMethods: selectedPaymentMethods.length > 0 ? selectedPaymentMethods : undefined,
+          denominationIds: selectedItemIds.length > 0 ? selectedItemIds : undefined,
           startDate: filterStartDate ? filterStartDate + 'T00:00:00' : undefined,
           endDate: filterEndDate ? filterEndDate + 'T23:59:59' : undefined,
         }),
         distributorService.getAll(),
-        inventoryService.getActiveDenominations(),
+        inventoryService.getAllDenominations(),
         inventoryService.getAllBatches(),
       ]);
 
@@ -438,12 +447,21 @@ export default function SalesPage() {
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     setSearchQuery('');
-    setFilterDistributorId('');
-    setFilterPaymentMethod('');
+    setSelectedDistributorIds([]);
+    setSelectedPaymentMethods([]);
     setFilterOrderStatus('');
+    setSelectedItemIds([]);
     setFilterStartDate(monthStart);
     setFilterEndDate(today);
-    fetchOrders(0, {});
+    fetchOrders(0, {
+      search: undefined,
+      distributorIds: undefined,
+      paymentMethods: undefined,
+      status: undefined,
+      denominationIds: undefined,
+      startDate: monthStart + 'T00:00:00',
+      endDate: today + 'T23:59:59',
+    });
   };
 
   useEffect(() => {
@@ -684,14 +702,14 @@ export default function SalesPage() {
             <button
               onClick={() => setShowFilters(prev => !prev)}
               className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition border ${
-                showFilters || searchQuery || filterDistributorId || filterPaymentMethod || filterOrderStatus
+                showFilters || searchQuery || selectedDistributorIds.length > 0 || selectedPaymentMethods.length > 0 || filterOrderStatus || selectedItemIds.length > 0
                   ? 'bg-teal-500/15 border-teal-500/30 text-teal-300'
                   : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:text-white hover:bg-slate-700/80'
               }`}
             >
               <Filter className="w-3.5 h-3.5" />
               <span>Filters</span>
-              {(searchQuery || filterDistributorId || filterPaymentMethod || filterOrderStatus) && (
+              {(searchQuery || selectedDistributorIds.length > 0 || selectedPaymentMethods.length > 0 || filterOrderStatus || selectedItemIds.length > 0) && (
                 <span className="w-2 h-2 rounded-full bg-teal-400 ml-0.5 animate-pulse" />
               )}
               {showFilters ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -729,7 +747,7 @@ export default function SalesPage() {
           <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3 animate-fadeIn">
           <form onSubmit={handleApplyFilters} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3">
             {/* Search Keyword */}
-            <div className="lg:col-span-5 relative">
+            <div className="lg:col-span-3 relative">
               <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
@@ -749,34 +767,61 @@ export default function SalesPage() {
               )}
             </div>
 
-            {/* Distributor Filter */}
+            {/* Item Filter (Multi-select) */}
             <div className="lg:col-span-3">
-              <select
-                value={filterDistributorId}
-                onChange={(e) => setFilterDistributorId(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500 transition"
-              >
-                <option value="">All Distributors</option>
-                {distributors.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.fullName} (@{d.username})
-                  </option>
-                ))}
-              </select>
+              <MultiSelectDropdown
+                label="Item"
+                icon={CreditCard}
+                placeholder="All Items"
+                searchPlaceholder="Search card products..."
+                options={denominations.map((d) => ({
+                  value: d.id,
+                  label: d.name,
+                  sublabel: `৳${Number(d.faceValue || d.retailPrice || 0).toFixed(0)}`,
+                }))}
+                selectedValues={selectedItemIds}
+                onChange={(newIds) => {
+                  setSelectedItemIds(newIds);
+                }}
+              />
             </div>
 
-            {/* Payment Method Filter */}
+            {/* Distributor Filter (Multi-select) */}
             <div className="lg:col-span-2">
-              <select
-                value={filterPaymentMethod}
-                onChange={(e) => setFilterPaymentMethod(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500 transition"
-              >
-                <option value="">All Payments</option>
-                <option value="BALANCE_CREDIT">Balance / Credit</option>
-                <option value="CASH">Cash</option>
-                <option value="BANK_TRANSFER">Bank Transfer</option>
-              </select>
+              <MultiSelectDropdown
+                label="Distributor"
+                icon={Users}
+                placeholder="All Distributors"
+                searchPlaceholder="Search distributors..."
+                options={distributors.map((d) => ({
+                  value: d.id,
+                  label: d.fullName,
+                  sublabel: `@${d.username}`,
+                }))}
+                selectedValues={selectedDistributorIds}
+                onChange={(newIds) => {
+                  setSelectedDistributorIds(newIds);
+                }}
+              />
+            </div>
+
+            {/* Payment Method Filter (Multi-select) */}
+            <div className="lg:col-span-2">
+              <MultiSelectDropdown
+                label="Payment"
+                icon={Wallet}
+                placeholder="All Payments"
+                searchPlaceholder="Search payment methods..."
+                options={[
+                  { value: 'BALANCE_CREDIT', label: 'Balance / Credit' },
+                  { value: 'CASH', label: 'Cash' },
+                  { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
+                ]}
+                selectedValues={selectedPaymentMethods}
+                onChange={(newMethods) => {
+                  setSelectedPaymentMethods(newMethods);
+                }}
+              />
             </div>
 
             {/* Filter Buttons */}
@@ -788,7 +833,7 @@ export default function SalesPage() {
                 <Search className="w-3.5 h-3.5" />
                 Filter
               </button>
-              {(searchQuery || filterDistributorId || filterPaymentMethod || filterStartDate || filterEndDate) && (
+              {(searchQuery || selectedDistributorIds.length > 0 || selectedPaymentMethods.length > 0 || filterOrderStatus || selectedItemIds.length > 0 || filterStartDate || filterEndDate) && (
                 <button
                   type="button"
                   onClick={handleResetFilters}
@@ -800,6 +845,137 @@ export default function SalesPage() {
               )}
             </div>
           </form>
+
+          {/* Active Filter Tags */}
+          {(selectedItemIds.length > 0 || selectedDistributorIds.length > 0 || selectedPaymentMethods.length > 0) && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+              <span className="text-[11px] text-slate-500 font-medium mr-1">Active Filters:</span>
+              
+              {/* Item filter tags */}
+              {selectedItemIds.map((id) => {
+                const item = denominations.find((d) => d.id === id);
+                return (
+                  <span
+                    key={`item-${id}`}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-teal-500/10 text-teal-300 border border-teal-500/25 text-[11px]"
+                  >
+                    <span>Item: {item?.name || id}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newIds = selectedItemIds.filter((v) => v !== id);
+                        setSelectedItemIds(newIds);
+                        fetchOrders(0, {
+                          search: searchQuery || undefined,
+                          distributorIds: selectedDistributorIds.length > 0 ? selectedDistributorIds : undefined,
+                          paymentMethods: selectedPaymentMethods.length > 0 ? selectedPaymentMethods : undefined,
+                          status: filterOrderStatus || undefined,
+                          denominationIds: newIds.length > 0 ? newIds : undefined,
+                          startDate: filterStartDate ? filterStartDate + 'T00:00:00' : undefined,
+                          endDate: filterEndDate ? filterEndDate + 'T23:59:59' : undefined,
+                        });
+                      }}
+                      className="hover:text-white"
+                      title="Remove item filter"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                );
+              })}
+
+              {/* Distributor filter tags */}
+              {selectedDistributorIds.map((id) => {
+                const dist = distributors.find((d) => d.id === id);
+                return (
+                  <span
+                    key={`dist-${id}`}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-teal-500/10 text-teal-300 border border-teal-500/25 text-[11px]"
+                  >
+                    <span>Distributor: {dist?.fullName || dist?.username || id}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newDistIds = selectedDistributorIds.filter((v) => v !== id);
+                        setSelectedDistributorIds(newDistIds);
+                        fetchOrders(0, {
+                          search: searchQuery || undefined,
+                          distributorIds: newDistIds.length > 0 ? newDistIds : undefined,
+                          paymentMethods: selectedPaymentMethods.length > 0 ? selectedPaymentMethods : undefined,
+                          status: filterOrderStatus || undefined,
+                          denominationIds: selectedItemIds.length > 0 ? selectedItemIds : undefined,
+                          startDate: filterStartDate ? filterStartDate + 'T00:00:00' : undefined,
+                          endDate: filterEndDate ? filterEndDate + 'T23:59:59' : undefined,
+                        });
+                      }}
+                      className="hover:text-white"
+                      title="Remove distributor filter"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                );
+              })}
+
+              {/* Payment method filter tags */}
+              {selectedPaymentMethods.map((method) => {
+                const payLabels = {
+                  BALANCE_CREDIT: 'Balance / Credit',
+                  CASH: 'Cash',
+                  BANK_TRANSFER: 'Bank Transfer'
+                };
+                return (
+                  <span
+                    key={`pay-${method}`}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-teal-500/10 text-teal-300 border border-teal-500/25 text-[11px]"
+                  >
+                    <span>Payment: {payLabels[method] || method}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newPays = selectedPaymentMethods.filter((v) => v !== method);
+                        setSelectedPaymentMethods(newPays);
+                        fetchOrders(0, {
+                          search: searchQuery || undefined,
+                          distributorIds: selectedDistributorIds.length > 0 ? selectedDistributorIds : undefined,
+                          paymentMethods: newPays.length > 0 ? newPays : undefined,
+                          status: filterOrderStatus || undefined,
+                          denominationIds: selectedItemIds.length > 0 ? selectedItemIds : undefined,
+                          startDate: filterStartDate ? filterStartDate + 'T00:00:00' : undefined,
+                          endDate: filterEndDate ? filterEndDate + 'T23:59:59' : undefined,
+                        });
+                      }}
+                      className="hover:text-white"
+                      title="Remove payment filter"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedItemIds([]);
+                  setSelectedDistributorIds([]);
+                  setSelectedPaymentMethods([]);
+                  fetchOrders(0, {
+                    search: searchQuery || undefined,
+                    distributorIds: undefined,
+                    paymentMethods: undefined,
+                    status: filterOrderStatus || undefined,
+                    denominationIds: undefined,
+                    startDate: filterStartDate ? filterStartDate + 'T00:00:00' : undefined,
+                    endDate: filterEndDate ? filterEndDate + 'T23:59:59' : undefined,
+                  });
+                }}
+                className="text-[11px] text-teal-400 hover:underline ml-1"
+              >
+                Clear all filters
+              </button>
+            </div>
+          )}
 
           {/* Date Filter Bar */}
           <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-800/60 text-xs text-slate-400">
@@ -853,11 +1029,12 @@ export default function SalesPage() {
                   setFilterEndDate(today);
                   fetchOrders(0, {
                     search: searchQuery || undefined,
-                    distributorId: filterDistributorId || undefined,
-                    paymentMethod: filterPaymentMethod || undefined,
+                    distributorIds: selectedDistributorIds.length > 0 ? selectedDistributorIds : undefined,
+                    paymentMethods: selectedPaymentMethods.length > 0 ? selectedPaymentMethods : undefined,
                     status: filterOrderStatus || undefined,
-                    startDate: monthStart,
-                    endDate: today,
+                    denominationIds: selectedItemIds.length > 0 ? selectedItemIds : undefined,
+                    startDate: monthStart + 'T00:00:00',
+                    endDate: today + 'T23:59:59',
                   });
                 }}
                 className="text-xs text-teal-400 hover:underline"
