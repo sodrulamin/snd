@@ -1243,13 +1243,13 @@ export default function SalesPage() {
         >
           {/* Fullscreen Backdrop Overlay */}
           <div
-            className="fixed inset-0 bg-slate-950/75 backdrop-blur-md transition-opacity"
+            className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity"
             onClick={() => setShowOrderModal(false)}
             aria-hidden="true"
           />
 
           {/* Modal Dialog Card (Never exceeds 90vh, pinned header and footer) */}
-          <div className="relative w-full max-w-2xl max-h-[90vh] my-auto flex flex-col bg-slate-900 border border-slate-700/70 rounded-3xl shadow-2xl z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="relative w-full max-w-2xl max-h-[90vh] my-auto flex flex-col bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl shadow-2xl z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Pinned Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-950/60 shrink-0 select-none">
               <div>
@@ -1503,8 +1503,9 @@ export default function SalesPage() {
 
       {/* Delete Order Confirmation Modal */}
       {deletingOrder && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-slate-900 border border-red-500/30 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fadeIn">
+          <div className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity" onClick={() => !deleting && setDeletingOrder(null)} aria-hidden="true" />
+          <div className="relative bg-slate-900/85 backdrop-blur-xl border border-red-500/30 rounded-3xl w-full max-w-md p-6 shadow-2xl my-auto z-10 animate-in fade-in zoom-in-95 duration-150 space-y-4">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20 flex-shrink-0">
                 <Trash2 className="w-6 h-6" />
@@ -1515,7 +1516,7 @@ export default function SalesPage() {
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2 text-xs font-mono">
+            <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2 text-xs font-mono">
               <div className="flex justify-between">
                 <span className="text-slate-400">Order #:</span>
                 <span className="text-teal-400 font-bold">{deletingOrder.orderNumber}</span>

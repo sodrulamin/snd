@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Users,
   User,
@@ -380,9 +381,10 @@ export default function DistributorsPage() {
       </div>
 
       {/* Register Distributor Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-lg p-6 shadow-2xl">
+      {showAddModal && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fadeIn">
+          <div className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity" onClick={() => setShowAddModal(false)} aria-hidden="true" />
+          <div className="relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl w-full max-w-lg p-6 shadow-2xl my-auto z-10 animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-white mb-1">Register New Distributor</h3>
             <p className="text-xs text-slate-400 mb-5">Create a partner account for wholesale recharge card purchases</p>
 
@@ -509,13 +511,15 @@ export default function DistributorsPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Edit Distributor Modal */}
-      {showEditModal && editingDistributor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      {showEditModal && editingDistributor && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fadeIn">
+          <div className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity" onClick={() => { setShowEditModal(false); setEditingDistributor(null); }} aria-hidden="true" />
+          <div className="relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto my-auto z-10 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-lg font-bold text-white">Edit Distributor</h3>
@@ -677,13 +681,15 @@ export default function DistributorsPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Wallet Deposit / Adjustment Modal */}
-      {showWalletModal && selectedDistributor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl">
+      {showWalletModal && selectedDistributor && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fadeIn">
+          <div className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity" onClick={() => setShowWalletModal(false)} aria-hidden="true" />
+          <div className="relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl w-full max-w-md p-6 shadow-2xl my-auto z-10 animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-white mb-1">Wallet Top-up & Settlement</h3>
             <p className="text-xs text-slate-400 mb-4">
               Partner: <strong className="text-white">{selectedDistributor.fullName}</strong>
@@ -696,7 +702,7 @@ export default function DistributorsPage() {
                   <select
                     value={walletForm.transactionType}
                     onChange={(e) => setWalletForm({ ...walletForm, transactionType: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                   >
                     <option value="CREDIT">Deposit (Credit +)</option>
                     <option value="DEBIT">Deduct (Debit -)</option>
@@ -712,7 +718,7 @@ export default function DistributorsPage() {
                     placeholder="1000.00"
                     value={walletForm.amount}
                     onChange={(e) => setWalletForm({ ...walletForm, amount: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                   />
                 </div>
               </div>
@@ -723,7 +729,7 @@ export default function DistributorsPage() {
                   <select
                     value={walletForm.referenceType}
                     onChange={(e) => setWalletForm({ ...walletForm, referenceType: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                   >
                     <option value="BANK_TRANSFER">Bank Wire / ACH</option>
                     <option value="CASH_DEPOSIT">Cash Deposit</option>
@@ -737,7 +743,7 @@ export default function DistributorsPage() {
                     type="text"
                     value={walletForm.referenceId}
                     onChange={(e) => setWalletForm({ ...walletForm, referenceId: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                   />
                 </div>
               </div>
@@ -748,7 +754,7 @@ export default function DistributorsPage() {
                   rows="2"
                   value={walletForm.notes}
                   onChange={(e) => setWalletForm({ ...walletForm, notes: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                 ></textarea>
               </div>
 
@@ -769,13 +775,15 @@ export default function DistributorsPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Ledger History Modal */}
-      {showLedgerModal && selectedDistributor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl p-6 shadow-2xl max-h-[85vh] flex flex-col">
+      {showLedgerModal && selectedDistributor && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fadeIn">
+          <div className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity" onClick={() => setShowLedgerModal(false)} aria-hidden="true" />
+          <div className="relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl w-full max-w-2xl p-6 shadow-2xl max-h-[85vh] flex flex-col my-auto z-10 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
               <div>
                 <h3 className="text-lg font-bold text-white">Distributor Financial Ledger</h3>
@@ -786,7 +794,7 @@ export default function DistributorsPage() {
 
             <div className="overflow-y-auto flex-1 my-4">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-950 text-slate-400 font-semibold sticky top-0">
+                <thead className="bg-slate-950/80 backdrop-blur-md text-slate-400 font-semibold sticky top-0">
                   <tr>
                     <th className="p-2.5 text-center w-10">SL</th>
                     <th className="p-2.5">Date</th>
@@ -839,13 +847,15 @@ export default function DistributorsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Delete Distributor Confirmation Modal */}
-      {deletingDistributor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-red-500/30 rounded-3xl w-full max-w-md p-6 shadow-2xl">
+      {deletingDistributor && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fadeIn">
+          <div className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity" onClick={() => setDeletingDistributor(null)} aria-hidden="true" />
+          <div className="relative bg-slate-900/85 backdrop-blur-xl border border-red-500/30 rounded-3xl w-full max-w-md p-6 shadow-2xl my-auto z-10 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20">
                 <Trash2 className="w-6 h-6" />
@@ -856,7 +866,7 @@ export default function DistributorsPage() {
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 mb-4 text-xs space-y-1.5 font-mono">
+            <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 mb-4 text-xs space-y-1.5 font-mono">
               <p className="text-slate-300">Name: <strong className="text-white">{deletingDistributor.fullName}</strong></p>
               <p className="text-slate-300">Username: <strong className="text-teal-400">@{deletingDistributor.username}</strong></p>
               <p className="text-slate-300">Wallet Balance: <strong className="text-emerald-400">৳{Number(deletingDistributor.balance).toFixed(2)}</strong></p>
@@ -888,7 +898,8 @@ export default function DistributorsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

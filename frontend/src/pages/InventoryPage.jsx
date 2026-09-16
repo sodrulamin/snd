@@ -861,7 +861,7 @@ export default function InventoryPage() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4 sm:p-6">
           {/* Fullscreen Backdrop Overlay */}
           <div 
-            className="fixed inset-0 bg-slate-950/75 backdrop-blur-md transition-opacity"
+            className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity"
             onClick={() => setShowBatchModal(false)}
             aria-hidden="true"
           />
@@ -1030,12 +1030,13 @@ export default function InventoryPage() {
 
       {/* Lot Serial Details Modal */}
       {selectedLotForDetails && createPortal(
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
           <div 
-            className="fixed inset-0"
+            className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity"
             onClick={() => setSelectedLotForDetails(null)}
+            aria-hidden="true"
           />
-          <div className="relative bg-slate-900/75 backdrop-blur-2xl border border-slate-700/60 rounded-3xl w-full max-w-4xl p-6 shadow-2xl my-8 z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+          <div className="relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl w-full max-w-4xl p-6 shadow-2xl my-8 z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
             {/* Modal Header */}
             <div className="flex items-start justify-between pb-4 border-b border-slate-800 shrink-0">
               <div className="flex items-center gap-3">

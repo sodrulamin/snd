@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { 
   Megaphone, 
@@ -807,11 +808,12 @@ export default function CampaignExpensesPage() {
         )}
       </div>
       {/* UNIFIED CAMPAIGN MODAL: Create, Edit or View Campaign */}
-      {showCampaignModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-6">
+      {showCampaignModal && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fadeIn">
+          <div className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity" onClick={() => setShowCampaignModal(false)} aria-hidden="true" />
+          <div className="relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto z-10 animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+            <div className="p-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/60 backdrop-blur-md">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-lg bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400">
                   <Megaphone className="w-5 h-5" />
@@ -1255,9 +1257,10 @@ export default function CampaignExpensesPage() {
               )}
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-          </div>
+    </div>
   );
 }

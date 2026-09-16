@@ -25,12 +25,12 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4 sm:p-6 print:p-0">
       <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity print:hidden"
+        className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity print:hidden"
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="relative bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl my-8 z-10 print:my-0 print:border-none print:shadow-none animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/50 print:hidden">
+      <div className="relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl my-8 z-10 print:my-0 print:border-none print:shadow-none animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md print:hidden">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
             <h3 className="font-semibold text-white">Sales Voucher & Official Invoice</h3>
@@ -52,7 +52,7 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
           </div>
         </div>
 
-        <div className="p-8 bg-slate-900 text-slate-100 print:bg-white print:text-black print:p-0">
+        <div className="p-8 bg-transparent text-slate-100 print:bg-white print:text-black print:p-0">
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start pb-6 border-b border-slate-800 print:border-slate-300 gap-4">
             <div>

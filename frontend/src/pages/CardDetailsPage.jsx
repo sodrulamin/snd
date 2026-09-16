@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Plus, 
   Tag, 
@@ -514,9 +515,10 @@ export default function CardDetailsPage() {
       </div>
 
       {/* Card Definition Modal (Create / Edit) */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-lg p-6 shadow-2xl my-8">
+      {showModal && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fadeIn">
+          <div className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity" onClick={() => setShowModal(false)} aria-hidden="true" />
+          <div className="relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl w-full max-w-lg p-6 shadow-2xl my-auto z-10 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
               <div>
                 <h3 className="text-lg font-bold text-white">
@@ -675,13 +677,15 @@ export default function CardDetailsPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Delete Confirmation Modal */}
-      {deletingCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-slate-900 border border-red-500/30 rounded-3xl w-full max-w-md p-6 shadow-2xl">
+      {deletingCard && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fadeIn">
+          <div className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity" onClick={() => !isDeleting && setDeletingCard(null)} aria-hidden="true" />
+          <div className="relative bg-slate-900/85 backdrop-blur-xl border border-red-500/30 rounded-3xl w-full max-w-md p-6 shadow-2xl my-auto z-10 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20">
                 <Trash2 className="w-6 h-6" />
@@ -692,7 +696,7 @@ export default function CardDetailsPage() {
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 mb-4 text-xs space-y-1 font-mono">
+            <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 mb-4 text-xs space-y-1 font-mono">
               <p className="text-slate-300">Code: <strong className="text-teal-400">[{deletingCard.code}]</strong></p>
               <p className="text-slate-300">Name: <strong className="text-white">{deletingCard.name}</strong></p>
               <p className="text-slate-300">Retailer MRP: <strong className="text-emerald-400">৳{Number(deletingCard.retailPrice || deletingCard.faceValue).toFixed(2)}</strong></p>
@@ -723,7 +727,8 @@ export default function CardDetailsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

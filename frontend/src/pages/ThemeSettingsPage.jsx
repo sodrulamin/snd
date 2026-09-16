@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Palette, 
   Check, 
@@ -165,9 +166,10 @@ export default function ThemeSettingsPage() {
       )}
 
       {/* Save Reference Modal */}
-      {isSaveModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5">
+      {isSaveModalOpen && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fadeIn">
+          <div className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity" onClick={() => setIsSaveModalOpen(false)} aria-hidden="true" />
+          <div className="relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl p-6 max-w-md w-full shadow-2xl my-auto z-10 animate-in fade-in zoom-in-95 duration-150 space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
@@ -240,7 +242,8 @@ export default function ThemeSettingsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <div className="w-full space-y-6 flex-1">
