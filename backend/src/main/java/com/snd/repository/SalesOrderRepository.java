@@ -27,7 +27,7 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
         (:endDate IS NULL OR o.createdAt <= :endDate) AND
         (:search IS NULL OR :search = '' OR
          LOWER(o.orderNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR
-         LOWER(o.distributor.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR
+         LOWER(COALESCE(o.distributor.partnerProfile.companyName, '')) LIKE LOWER(CONCAT('%', :search, '%')) OR
          LOWER(o.distributor.username) LIKE LOWER(CONCAT('%', :search, '%')) OR
          LOWER(COALESCE(o.serialRangesSummary, '')) LIKE LOWER(CONCAT('%', :search, '%')) OR
          LOWER(COALESCE(o.notes, '')) LIKE LOWER(CONCAT('%', :search, '%'))) AND

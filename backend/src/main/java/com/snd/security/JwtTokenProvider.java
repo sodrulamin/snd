@@ -1,5 +1,6 @@
 package com.snd.security;
 
+import com.snd.model.PartnerProfile;
 import com.snd.model.User;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
@@ -39,8 +40,9 @@ public class JwtTokenProvider {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
         claims.put("role", user.getRole());
-        claims.put("fullName", user.getFullName());
-        claims.put("email", user.getEmail());
+        PartnerProfile profile = user.getPartnerProfile();
+        claims.put("fullName", profile != null ? profile.getFullName() : user.getUsername());
+        claims.put("email", profile != null ? profile.getEmail() : null);
 
         return Jwts.builder()
                 .claims(claims)

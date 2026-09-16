@@ -4,6 +4,7 @@ import com.snd.dto.ReportDto;
 import com.snd.dto.SalesDto;
 import com.snd.enums.BatchStatus;
 import com.snd.model.CardDenomination;
+import com.snd.model.PartnerProfile;
 import com.snd.model.SalesOrder;
 import com.snd.model.User;
 import com.snd.repository.*;
@@ -183,13 +184,17 @@ public class ReportService {
             long cardsBought = orders.stream().mapToLong(SalesOrder::getTotalCardsCount).sum();
             BigDecimal totalSpend = orders.stream().map(SalesOrder::getFinalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
 
+            PartnerProfile profile = dist.getPartnerProfile();
+            String distName = profile != null ? profile.getFullName() : dist.getUsername();
+            BigDecimal currentBalance = profile != null && profile.getBalance() != null ? profile.getBalance() : BigDecimal.ZERO;
+
             list.add(ReportDto.DistributorRankDto.builder()
                     .distributorId(dist.getId())
-                    .distributorName(dist.getFullName())
+                    .distributorName(distName)
                     .ordersCount((long) orders.size())
                     .cardsBought(cardsBought)
                     .totalSpend(totalSpend)
-                    .currentBalance(dist.getBalance())
+                    .currentBalance(currentBalance)
                     .build());
         }
 

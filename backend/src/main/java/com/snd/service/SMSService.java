@@ -1,5 +1,6 @@
 package com.snd.service;
 
+import com.snd.model.PartnerProfile;
 import com.snd.model.User;
 import com.snd.util.MsisdnUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -67,51 +68,33 @@ public class SMSService {
      * @return formatted SMS body string, ready to pass to {@link #sendSms}
      */
     public String createDistributorOnboardMessage(User user) {
-        // Extract first name for a personal greeting
-        String firstName = user.getFullName() != null && user.getFullName().contains(" ")
-                ? user.getFullName().split(" ")[0]
-                : (user.getFullName() != null ? user.getFullName() : "Distributor");
+        PartnerProfile profile = user != null ? user.getPartnerProfile() : null;
+        String fullName = profile != null && profile.getFullName() != null ? profile.getFullName() : (user != null ? user.getUsername() : "Distributor");
 
         // Format join date
-        String joinDate = user.getCreatedAt() != null
+        String joinDate = user != null && user.getCreatedAt() != null
                 ? user.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy"))
                 : "Today";
-
-        // Credit limit — show only if non-zero
-        String creditLine = "";
-        if (user.getCreditLimit() != null && user.getCreditLimit().compareTo(BigDecimal.ZERO) > 0) {
-            creditLine = "\nCredit Limit: BDT " + String.format("%,.2f", user.getCreditLimit());
-        }
-
-        // Discount rate — show only if non-zero
-        String discountLine = "";
-        if (user.getDiscountRate() != null && user.getDiscountRate().compareTo(BigDecimal.ZERO) > 0) {
-            discountLine = "\nDiscount Rate: " + user.getDiscountRate().stripTrailingZeros().toPlainString() + "%";
-        }
+//
+//        // Credit limit — show only if non-zero
+//        String creditLine = "";
+//        BigDecimal creditLimit = profile != null ? profile.getCreditLimit() : null;
+//        if (creditLimit != null && creditLimit.compareTo(BigDecimal.ZERO) > 0) {
+//            creditLine = " Credit Limit: BDT " + String.format("%,.2f", creditLimit) + ".";
+//        }
+//
+//        // Discount rate — show only if non-zero
+//        String discountLine = "";
+//        BigDecimal discountRate = profile != null ? profile.getDiscountRate() : null;
+//        if (discountRate != null && discountRate.compareTo(BigDecimal.ZERO) > 0) {
+//            discountLine = " Discount Rate: " + discountRate.stripTrailingZeros().toPlainString() + "%.";
+//        }
 
         return String.format(
-                "Welcome to IPTSP S&D, %s!\n" +
-                "-----------------------------\n" +
-                "Your distributor account is now ACTIVE.\n" +
-                "\n" +
-                "Login Details:\n" +
-                "  Username : %s\n" +
-                "\n" +
-                "Account Summary:\n" +
-                "  Joined   : %s" +
-                "%s" +   // credit limit line (may be empty)
-                "%s" +   // discount line (may be empty)
-                "\n" +
-                "\n" +
-                "Visit our portal to start placing orders.\n" +
-                "Support: 8809643901704\n" +
-                "-----------------------------\n" +
-                "IPTSP Recharge Distribution",
-                firstName,
-                user.getUsername(),
-                joinDate,
-                creditLine,
-                discountLine
+                "Welcome to IPTSP Sales and Distribution, %s!, Your distributor account is now ACTIVE. Username: %s. Joined: %s",
+                fullName,
+                user != null ? user.getUsername() : "",
+                joinDate
         );
     }
 

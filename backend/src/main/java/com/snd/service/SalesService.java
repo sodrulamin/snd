@@ -39,6 +39,7 @@ public class SalesService {
     private final CampaignExpenseItemRepository campaignExpenseItemRepository;
     private final InvoicePdfService invoicePdfService;
     private final MailService mailService;
+    private final PartnerProfileRepository partnerProfileRepository;
 
     @Transactional
     public SalesDto.SalesOrderResponse createOrder(SalesDto.CreateOrderRequest request, String createdByUsername) {
@@ -49,13 +50,19 @@ public class SalesService {
             throw new IllegalArgumentException("Selected user is not a distributor");
         }
 
+        PartnerProfile profile = distributor.getPartnerProfile();
+        String distName = profile != null ? profile.getCompanyName() : distributor.getUsername();
+
         if (!"ACTIVE".equalsIgnoreCase(distributor.getStatus())) {
-            throw new IllegalStateException("Cannot create order for distributor '" + distributor.getFullName() + "' because the account is currently " + distributor.getStatus() + ".");
+            throw new IllegalStateException("Cannot create order for distributor '" + distName + "' because the account is currently " + distributor.getStatus() + ".");
         }
 
+        BigDecimal discountRate = (profile != null && profile.getDiscountRate() != null)
+                ? profile.getDiscountRate()
+                : BigDecimal.ZERO;
         BigDecimal discountPercentage = request.getCustomDiscountPercentage() != null
                 ? request.getCustomDiscountPercentage()
-                : distributor.getDiscountRate();
+                : discountRate;
 
         String orderNumber = "ORD-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS")) + "-" + (int)(100 + Math.random() * 900);
 
@@ -294,10 +301,14 @@ public class SalesService {
         order = orderRepository.save(order);
 
         if ("BALANCE_CREDIT".equalsIgnoreCase(request.getPaymentMethod())) {
-            BigDecimal prevBalance = distributor.getBalance();
+            PartnerProfile p = distributor.getPartnerProfile();
+            if (p == null) {
+                throw new IllegalStateException("Distributor does not have an active partner profile");
+            }
+            BigDecimal prevBalance = p.getBalance() != null ? p.getBalance() : BigDecimal.ZERO;
             BigDecimal newBalance = prevBalance.subtract(finalAmount);
-            distributor.setBalance(newBalance);
-            userRepository.save(distributor);
+            p.setBalance(newBalance);
+            partnerProfileRepository.save(p);
 
             DistributorTransaction txn = DistributorTransaction.builder()
                     .distributor(distributor)
@@ -322,8 +333,8 @@ public class SalesService {
             String creatorEmail = null;
             if (createdByUsername != null && !createdByUsername.isBlank()) {
                 User creator = userRepository.findByUsername(createdByUsername).orElse(null);
-                if (creator != null && creator.getEmail() != null) {
-                    creatorEmail = creator.getEmail().trim();
+                if (creator != null && creator.getPartnerProfile() != null && creator.getPartnerProfile().getEmail() != null) {
+                    creatorEmail = creator.getPartnerProfile().getEmail().trim();
                 }
             }
 
@@ -404,10 +415,22 @@ public class SalesService {
         if (order.getFinalAmount() != null && order.getFinalAmount().compareTo(BigDecimal.ZERO) > 0) {
             User distributor = order.getDistributor();
             if (distributor != null) {
-                BigDecimal prevBalance = distributor.getBalance() != null ? distributor.getBalance() : BigDecimal.ZERO;
+                PartnerProfile profile = distributor.getPartnerProfile();
+                if (profile == null) {
+                    profile = partnerProfileRepository.findByUserId(distributor.getId())
+                            .orElseGet(() -> PartnerProfile.builder()
+                                    .user(distributor)
+                                    .companyName(distributor.getUsername())
+                                    .balance(BigDecimal.ZERO)
+                                    .creditLimit(BigDecimal.ZERO)
+                                    .discountRate(BigDecimal.ZERO)
+                                    .build());
+                    distributor.setPartnerProfile(profile);
+                }
+                BigDecimal prevBalance = profile.getBalance() != null ? profile.getBalance() : BigDecimal.ZERO;
                 BigDecimal newBalance = prevBalance.add(order.getFinalAmount());
-                distributor.setBalance(newBalance);
-                userRepository.save(distributor);
+                profile.setBalance(newBalance);
+                partnerProfileRepository.save(profile);
 
                 DistributorTransaction txn = DistributorTransaction.builder()
                         .distributor(distributor)
@@ -635,13 +658,18 @@ public class SalesService {
                 .subtotalFinal(i.getSubtotalFinal())
                 .build()).collect(Collectors.toList());
 
+        PartnerProfile profile = o.getDistributor() != null ? o.getDistributor().getPartnerProfile() : null;
+        String distName = profile != null ? profile.getFullName() : (o.getDistributor() != null ? o.getDistributor().getUsername() : null);
+        String distEmail = profile != null ? profile.getEmail() : null;
+        String distPhone = profile != null ? profile.getPhone() : null;
+
         return SalesDto.SalesOrderResponse.builder()
                 .id(o.getId())
                 .orderNumber(o.getOrderNumber())
-                .distributorId(o.getDistributor().getId())
-                .distributorName(o.getDistributor().getFullName())
-                .distributorEmail(o.getDistributor().getEmail())
-                .distributorPhone(o.getDistributor().getPhone())
+                .distributorId(o.getDistributor() != null ? o.getDistributor().getId() : null)
+                .distributorName(distName)
+                .distributorEmail(distEmail)
+                .distributorPhone(distPhone)
                 .totalCardsCount(o.getTotalCardsCount())
                 .totalFaceValue(o.getTotalFaceValue())
                 .discountPercentage(o.getDiscountPercentage())

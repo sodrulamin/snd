@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, 
+  Users,
+  User,
   Plus, 
   CreditCard, 
   Building2, 
@@ -43,10 +44,29 @@ export default function DistributorsPage() {
     username: '',
     password: '',
     fullName: '',
+    contactPerson: '',
     email: '',
     phone: '',
     creditLimit: '5000',
     discountRate: '5.0',
+    address: '',
+    status: 'ACTIVE',
+  });
+
+  // Edit State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingDistributor, setEditingDistributor] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [editForm, setEditForm] = useState({
+    username: '',
+    password: '',
+    fullName: '',
+    contactPerson: '',
+    email: '',
+    phone: '',
+    creditLimit: '0',
+    discountRate: '0',
     address: '',
     status: 'ACTIVE',
   });
@@ -116,12 +136,57 @@ export default function DistributorsPage() {
       const res = await distributorService.create(payload);
       if (res.data?.success) {
         setShowAddModal(false);
-        setDistForm({ username: '', password: '', fullName: '', email: '', phone: '', creditLimit: '5000', discountRate: '5.0', address: '', status: 'ACTIVE' });
+        setDistForm({ username: '', password: '', fullName: '', contactPerson: '', email: '', phone: '', creditLimit: '5000', discountRate: '5.0', address: '', status: 'ACTIVE' });
         await loadDistributors();
         alert('Distributor created successfully!');
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Error creating distributor');
+    }
+  };
+
+  const handleOpenEditModal = (dist) => {
+    setEditingDistributor(dist);
+    setEditError('');
+    setEditForm({
+      username: dist.username || '',
+      password: '',
+      fullName: dist.fullName || '',
+      contactPerson: dist.contactPerson || '',
+      email: dist.email || '',
+      phone: dist.phone || '',
+      creditLimit: dist.creditLimit != null ? String(dist.creditLimit) : '0',
+      discountRate: dist.discountRate != null ? String(dist.discountRate) : '0',
+      address: dist.address || '',
+      status: dist.status || 'ACTIVE',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateDistributor = async (e) => {
+    e.preventDefault();
+    if (!editingDistributor) return;
+    try {
+      setIsUpdating(true);
+      setEditError('');
+      const payload = {
+        ...editForm,
+        creditLimit: parseFloat(editForm.creditLimit) || 0,
+        discountRate: parseFloat(editForm.discountRate) || 0,
+      };
+      if (!payload.password || payload.password.trim() === '') {
+        delete payload.password;
+      }
+      const res = await distributorService.update(editingDistributor.id, payload);
+      if (res.data?.success) {
+        setShowEditModal(false);
+        setEditingDistributor(null);
+        await loadDistributors();
+      }
+    } catch (err) {
+      setEditError(err.response?.data?.message || 'Error updating distributor');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -257,6 +322,7 @@ export default function DistributorsPage() {
 
               {/* Contact details */}
               <div className="mt-4 space-y-1 text-xs text-slate-400">
+                {d.contactPerson && <div className="flex items-center gap-2 truncate"><User className="w-3.5 h-3.5 text-slate-500" /> <span className="text-slate-300">Contact: <strong className="font-medium text-white">{d.contactPerson}</strong></span></div>}
                 {d.email && <div className="flex items-center gap-2 truncate"><Mail className="w-3.5 h-3.5 text-slate-500" /> <span>{d.email}</span></div>}
                 {d.phone && <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-slate-500" /> <span>{d.phone}</span></div>}
                 {d.address && <div className="flex items-center gap-2 truncate"><MapPin className="w-3.5 h-3.5 text-slate-500" /> <span>{d.address}</span></div>}
@@ -281,6 +347,13 @@ export default function DistributorsPage() {
               </button>
               {isAdmin && (
                 <>
+                  <button
+                    onClick={() => handleOpenEditModal(d)}
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-teal-500/20 text-slate-300 hover:text-teal-300 border border-slate-700 hover:border-teal-500/30 transition"
+                    title="Edit Distributor"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
                   <button
                     onClick={() => handleToggleStatus(d)}
                     className={`p-2 rounded-xl border transition ${
@@ -346,6 +419,17 @@ export default function DistributorsPage() {
                   placeholder="e.g. FastCall Communications Ltd."
                   value={distForm.fullName}
                   onChange={(e) => setDistForm({ ...distForm, fullName: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Contact Person</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Mohammad Rahim"
+                  value={distForm.contactPerson}
+                  onChange={(e) => setDistForm({ ...distForm, contactPerson: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                 />
               </div>
@@ -421,6 +505,174 @@ export default function DistributorsPage() {
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 text-xs font-bold shadow-md shadow-teal-500/20"
                 >
                   Save Partner
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Distributor Modal */}
+      {showEditModal && editingDistributor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-white">Edit Distributor</h3>
+                <p className="text-xs text-slate-400">Update profile, contact, credit & discount settings</p>
+              </div>
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                editForm.status === 'ACTIVE'
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                  : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+              }`}>
+                {editForm.status}
+              </span>
+            </div>
+
+            {editError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{editError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateDistributor} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Username</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.username}
+                    onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Status</label>
+                  <select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                  >
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                    <option value="SUSPENDED">SUSPENDED</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Company / Full Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. FastCall Communications Ltd."
+                  value={editForm.fullName}
+                  onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Contact Person</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Mohammad Rahim"
+                  value={editForm.contactPerson}
+                  onChange={(e) => setEditForm({ ...editForm, contactPerson: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Email</label>
+                  <input
+                    type="email"
+                    placeholder="sales@example.com"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Phone</label>
+                  <input
+                    type="text"
+                    placeholder="+880 1700-000000"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Credit Limit (৳)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editForm.creditLimit}
+                    onChange={(e) => setEditForm({ ...editForm, creditLimit: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Discount Rate (%)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={editForm.discountRate}
+                    onChange={(e) => setEditForm({ ...editForm, discountRate: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">New Password (optional)</label>
+                <input
+                  type="password"
+                  placeholder="Leave blank to keep unchanged"
+                  value={editForm.password}
+                  onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Office Address</label>
+                <textarea
+                  rows="2"
+                  placeholder="Street, City, Country"
+                  value={editForm.address}
+                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                ></textarea>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingDistributor(null);
+                  }}
+                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdating}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 text-xs font-bold shadow-md shadow-teal-500/20 disabled:opacity-50"
+                >
+                  {isUpdating ? 'Saving Changes...' : 'Update Distributor'}
                 </button>
               </div>
             </form>

@@ -24,6 +24,7 @@ public class DistributorDto {
         @NotBlank(message = "Full name / Company name is required")
         private String fullName;
 
+        private String contactPerson;
         private String email;
         private String phone;
         @Builder.Default
@@ -43,6 +44,7 @@ public class DistributorDto {
         private Long id;
         private String username;
         private String fullName;
+        private String contactPerson;
         private String email;
         private String phone;
         private String status;

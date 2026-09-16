@@ -35,6 +35,8 @@ class SalesServiceOrderDeleteTest {
     @Mock
     private UserRepository userRepository;
     @Mock
+    private PartnerProfileRepository partnerProfileRepository;
+    @Mock
     private CardDenominationRepository denominationRepository;
     @Mock
     private CardBatchRepository batchRepository;
@@ -70,10 +72,15 @@ class SalesServiceOrderDeleteTest {
         distributor = User.builder()
                 .id(10L)
                 .username("dist1")
-                .fullName("Distributor Rahim")
                 .role("DISTRIBUTOR")
+                .build();
+        PartnerProfile partnerProfile = PartnerProfile.builder()
+                .id(10L)
+                .user(distributor)
+                .companyName("Distributor Rahim")
                 .balance(BigDecimal.valueOf(5000))
                 .build();
+        distributor.setPartnerProfile(partnerProfile);
 
         soldBatch = CardBatch.builder()
                 .id(100L)
@@ -148,8 +155,8 @@ class SalesServiceOrderDeleteTest {
         salesService.deleteOrder(50L);
 
         // 1. Verify distributor balance was refunded
-        assertThat(distributor.getBalance()).isEqualByComparingTo(BigDecimal.valueOf(24000)); // 5000 + 19000
-        verify(userRepository).save(distributor);
+        assertThat(distributor.getPartnerProfile().getBalance()).isEqualByComparingTo(BigDecimal.valueOf(24000)); // 5000 + 19000
+        verify(partnerProfileRepository).save(distributor.getPartnerProfile());
         verify(transactionRepository).save(any(DistributorTransaction.class));
 
         // 2. Verify cards were marked IN_STOCK and disassociated
@@ -191,6 +198,6 @@ class SalesServiceOrderDeleteTest {
                 .hasMessageContaining("already been redeemed");
 
         verify(orderRepository, never()).delete(any());
-        verify(userRepository, never()).save(any());
+        verify(partnerProfileRepository, never()).save(any());
     }
 }

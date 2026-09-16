@@ -5,6 +5,7 @@ import com.snd.enums.BatchStatus;
 import com.snd.model.CardBatch;
 import com.snd.model.CardDenomination;
 import com.snd.model.RechargeCard;
+import com.snd.model.User;
 import com.snd.repository.CardBatchRepository;
 import com.snd.repository.CardDenominationRepository;
 import com.snd.repository.RechargeCardRepository;
@@ -296,7 +297,7 @@ public class InventoryService {
                     .pinMasked(card != null ? card.getPinMasked() : null)
                     .status(status)
                     .distributorId(card != null && card.getDistributor() != null ? card.getDistributor().getId() : null)
-                    .distributorName(card != null && card.getDistributor() != null ? card.getDistributor().getFullName() : null)
+                    .distributorName(card != null && card.getDistributor() != null ? getDistributorName(card.getDistributor()) : null)
                     .orderId(card != null && card.getOrder() != null ? card.getOrder().getId() : null)
                     .orderNumber(card != null && card.getOrder() != null ? card.getOrder().getOrderNumber() : null)
                     .soldAt(card != null ? card.getSoldAt() : null)
@@ -323,7 +324,7 @@ public class InventoryService {
                     .pinMasked(card.getPinMasked())
                     .status(card.getStatus())
                     .distributorId(card.getDistributor() != null ? card.getDistributor().getId() : null)
-                    .distributorName(card.getDistributor() != null ? card.getDistributor().getFullName() : null)
+                    .distributorName(card.getDistributor() != null ? getDistributorName(card.getDistributor()) : null)
                     .orderId(card.getOrder() != null ? card.getOrder().getId() : null)
                     .orderNumber(card.getOrder() != null ? card.getOrder().getOrderNumber() : null)
                     .soldAt(card.getSoldAt())
@@ -790,5 +791,13 @@ public class InventoryService {
         List<RechargeCard> cards = rechargeCardRepository.findByBatchId(id);
         rechargeCardRepository.deleteAll(cards);
         batchRepository.delete(batch);
+    }
+
+    private String getDistributorName(User distributor) {
+        if (distributor == null) return null;
+        if (distributor.getPartnerProfile() != null && distributor.getPartnerProfile().getFullName() != null) {
+            return distributor.getPartnerProfile().getFullName();
+        }
+        return distributor.getUsername();
     }
 }

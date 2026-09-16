@@ -2,9 +2,11 @@ package com.snd.service;
 
 import com.snd.dto.DistributorDto;
 import com.snd.model.DistributorTransaction;
+import com.snd.model.PartnerProfile;
 import com.snd.model.SalesOrder;
 import com.snd.model.User;
 import com.snd.repository.DistributorTransactionRepository;
+import com.snd.repository.PartnerProfileRepository;
 import com.snd.repository.SalesOrderRepository;
 import com.snd.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ import java.util.stream.Collectors;
 public class DistributorService {
 
     private final UserRepository userRepository;
+    private final PartnerProfileRepository partnerProfileRepository;
     private final SalesOrderRepository salesOrderRepository;
     private final DistributorTransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
@@ -55,25 +58,31 @@ public class DistributorService {
         User distributor = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(rawPassword))
-                .fullName(request.getFullName())
-                .email(request.getEmail())
-                .phone(request.getPhone())
                 .role("DISTRIBUTOR")
                 .status(request.getStatus() != null ? request.getStatus() : "ACTIVE")
+                .build();
+
+        PartnerProfile profile = PartnerProfile.builder()
+                .user(distributor)
+                .companyName(request.getFullName())
+                .contactPerson(request.getContactPerson())
+                .email(request.getEmail())
+                .phone(request.getPhone())
+                .address(request.getAddress())
                 .balance(BigDecimal.ZERO)
                 .creditLimit(request.getCreditLimit() != null ? request.getCreditLimit() : BigDecimal.ZERO)
                 .discountRate(request.getDiscountRate() != null ? request.getDiscountRate() : BigDecimal.ZERO)
-                .address(request.getAddress())
                 .build();
 
+        distributor.setPartnerProfile(profile);
         distributor = userRepository.save(distributor);
 
-        if (StringUtils.hasText(distributor.getPhone())) {
+        if (StringUtils.hasText(profile.getPhone())) {
             String message = smsService.createDistributorOnboardMessage(distributor);
-            smsService.sendSms(distributor.getPhone(), message);
+            smsService.sendSms(profile.getPhone(), message);
         }
 
-        if (StringUtils.hasText(distributor.getEmail())) {
+        if (StringUtils.hasText(profile.getEmail())) {
             mailService.sendDistributorOnboardEmail(distributor);
         }
 
@@ -85,17 +94,34 @@ public class DistributorService {
         User distributor = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Distributor not found: " + id));
 
-        distributor.setFullName(request.getFullName());
-        distributor.setEmail(request.getEmail());
-        distributor.setPhone(request.getPhone());
-        if (request.getCreditLimit() != null) distributor.setCreditLimit(request.getCreditLimit());
-        if (request.getDiscountRate() != null) distributor.setDiscountRate(request.getDiscountRate());
-        if (request.getAddress() != null) distributor.setAddress(request.getAddress());
+        if (request.getUsername() != null && !request.getUsername().isBlank()
+                && !request.getUsername().trim().equalsIgnoreCase(distributor.getUsername())) {
+            String newUsername = request.getUsername().trim();
+            if (userRepository.existsByUsername(newUsername)) {
+                throw new IllegalArgumentException("Username '" + newUsername + "' is already in use");
+            }
+            distributor.setUsername(newUsername);
+        }
+
         if (request.getStatus() != null) distributor.setStatus(request.getStatus());
 
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             distributor.setPassword(passwordEncoder.encode(request.getPassword()));
         }
+
+        PartnerProfile profile = distributor.getPartnerProfile();
+        if (profile == null) {
+            profile = PartnerProfile.builder().user(distributor).build();
+            distributor.setPartnerProfile(profile);
+        }
+
+        if (request.getFullName() != null) profile.setCompanyName(request.getFullName().trim());
+        if (request.getContactPerson() != null) profile.setContactPerson(request.getContactPerson().trim());
+        if (request.getEmail() != null) profile.setEmail(request.getEmail().trim());
+        if (request.getPhone() != null) profile.setPhone(request.getPhone().trim());
+        if (request.getAddress() != null) profile.setAddress(request.getAddress().trim());
+        if (request.getCreditLimit() != null) profile.setCreditLimit(request.getCreditLimit());
+        if (request.getDiscountRate() != null) profile.setDiscountRate(request.getDiscountRate());
 
         distributor = userRepository.save(distributor);
         return mapToDistributorResponse(distributor);
@@ -106,7 +132,12 @@ public class DistributorService {
         User distributor = userRepository.findById(request.getDistributorId())
                 .orElseThrow(() -> new RuntimeException("Distributor not found: " + request.getDistributorId()));
 
-        BigDecimal prevBalance = distributor.getBalance();
+        PartnerProfile profile = distributor.getPartnerProfile();
+        if (profile == null) {
+            throw new IllegalStateException("Distributor does not have a partner profile");
+        }
+
+        BigDecimal prevBalance = profile.getBalance() != null ? profile.getBalance() : BigDecimal.ZERO;
         BigDecimal newBalance;
 
         if ("CREDIT".equalsIgnoreCase(request.getTransactionType())) {
@@ -115,8 +146,8 @@ public class DistributorService {
             newBalance = prevBalance.subtract(request.getAmount());
         }
 
-        distributor.setBalance(newBalance);
-        userRepository.save(distributor);
+        profile.setBalance(newBalance);
+        partnerProfileRepository.save(profile);
 
         DistributorTransaction txn = DistributorTransaction.builder()
                 .distributor(distributor)
@@ -181,9 +212,10 @@ public class DistributorService {
             throw new IllegalArgumentException("User is not a distributor");
         }
 
+        String distName = distributor.getPartnerProfile() != null ? distributor.getPartnerProfile().getCompanyName() : distributor.getUsername();
         List<SalesOrder> orders = salesOrderRepository.findByDistributorIdOrderByCreatedAtDesc(id);
         if (!orders.isEmpty()) {
-            throw new IllegalStateException("Cannot delete distributor '" + distributor.getFullName() + "' because they have " + orders.size() + " recorded sales order(s). You can change their status to INACTIVE or SUSPENDED instead.");
+            throw new IllegalStateException("Cannot delete distributor '" + distName + "' because they have " + orders.size() + " recorded sales order(s). You can change their status to INACTIVE or SUSPENDED instead.");
         }
 
         List<DistributorTransaction> txns = transactionRepository.findByDistributorIdOrderByCreatedAtDesc(id);
@@ -200,20 +232,30 @@ public class DistributorService {
                 .map(SalesOrder::getFinalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal availableCredit = u.getBalance().add(u.getCreditLimit());
+        PartnerProfile p = u.getPartnerProfile();
+        BigDecimal balance = p != null && p.getBalance() != null ? p.getBalance() : BigDecimal.ZERO;
+        BigDecimal creditLimit = p != null && p.getCreditLimit() != null ? p.getCreditLimit() : BigDecimal.ZERO;
+        BigDecimal availableCredit = balance.add(creditLimit);
+        BigDecimal discountRate = p != null && p.getDiscountRate() != null ? p.getDiscountRate() : BigDecimal.ZERO;
+        String fullName = p != null ? p.getCompanyName() : u.getUsername();
+        String contactPerson = p != null ? p.getContactPerson() : null;
+        String email = p != null ? p.getEmail() : null;
+        String phone = p != null ? p.getPhone() : null;
+        String address = p != null ? p.getAddress() : null;
 
         return DistributorDto.DistributorResponse.builder()
                 .id(u.getId())
                 .username(u.getUsername())
-                .fullName(u.getFullName())
-                .email(u.getEmail())
-                .phone(u.getPhone())
+                .fullName(fullName)
+                .contactPerson(contactPerson)
+                .email(email)
+                .phone(phone)
                 .status(u.getStatus())
-                .balance(u.getBalance())
-                .creditLimit(u.getCreditLimit())
+                .balance(balance)
+                .creditLimit(creditLimit)
                 .availableCredit(availableCredit)
-                .discountRate(u.getDiscountRate())
-                .address(u.getAddress())
+                .discountRate(discountRate)
+                .address(address)
                 .totalOrdersCount((long) orders.size())
                 .totalPurchasesAmount(totalPurchases)
                 .createdAt(u.getCreatedAt())
@@ -221,10 +263,14 @@ public class DistributorService {
     }
 
     private DistributorDto.TransactionDto mapToTransactionDto(DistributorTransaction t) {
+        String distName = (t.getDistributor() != null && t.getDistributor().getPartnerProfile() != null)
+                ? t.getDistributor().getPartnerProfile().getCompanyName()
+                : (t.getDistributor() != null ? t.getDistributor().getUsername() : "N/A");
+
         return DistributorDto.TransactionDto.builder()
                 .id(t.getId())
                 .distributorId(t.getDistributor().getId())
-                .distributorName(t.getDistributor().getFullName())
+                .distributorName(distName)
                 .transactionType(t.getTransactionType())
                 .amount(t.getAmount())
                 .previousBalance(t.getPreviousBalance())

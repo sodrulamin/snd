@@ -2,6 +2,7 @@ package com.snd.service;
 
 import com.snd.dto.MailAttachment;
 import com.snd.dto.SalesDto;
+import com.snd.model.PartnerProfile;
 import com.snd.model.User;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -199,35 +200,37 @@ public class MailService {
      */
     @Async("mailExecutor")
     public CompletableFuture<Boolean> sendDistributorOnboardEmail(User distributor, String rawPassword, List<MailAttachment> attachments) {
-        if (distributor == null || !StringUtils.hasText(distributor.getEmail())) {
+        PartnerProfile profile = distributor != null ? distributor.getPartnerProfile() : null;
+        String email = profile != null ? profile.getEmail() : null;
+        if (distributor == null || !StringUtils.hasText(email)) {
             log.warn("Distributor onboarding email skipped: distributor or email is missing.");
             return CompletableFuture.completedFuture(false);
         }
 
-        String to = distributor.getEmail().trim();
+        String to = email.trim();
         String subject = "Welcome to IPTSP S&D - Your Distributor Account Details";
 
         Map<String, Object> variables = new HashMap<>();
-        variables.put("fullName", distributor.getFullName());
+        variables.put("fullName", profile.getFullName());
         variables.put("username", distributor.getUsername());
         variables.put("rawPassword", rawPassword != null ? rawPassword : "");
         variables.put("status", distributor.getStatus() != null ? distributor.getStatus() : "ACTIVE");
-        variables.put("phone", distributor.getPhone() != null ? distributor.getPhone() : "N/A");
-        variables.put("email", distributor.getEmail());
+        variables.put("phone", profile.getPhone() != null ? profile.getPhone() : "N/A");
+        variables.put("email", email);
 
-        if (distributor.getCreditLimit() != null && distributor.getCreditLimit().compareTo(BigDecimal.ZERO) > 0) {
-            variables.put("creditLimit", String.format("%,.2f", distributor.getCreditLimit()));
+        if (profile.getCreditLimit() != null && profile.getCreditLimit().compareTo(BigDecimal.ZERO) > 0) {
+            variables.put("creditLimit", String.format("%,.2f", profile.getCreditLimit()));
         } else {
             variables.put("creditLimit", "0.00");
         }
 
-        if (distributor.getDiscountRate() != null && distributor.getDiscountRate().compareTo(BigDecimal.ZERO) > 0) {
-            variables.put("discountRate", distributor.getDiscountRate().stripTrailingZeros().toPlainString());
+        if (profile.getDiscountRate() != null && profile.getDiscountRate().compareTo(BigDecimal.ZERO) > 0) {
+            variables.put("discountRate", profile.getDiscountRate().stripTrailingZeros().toPlainString());
         } else {
             variables.put("discountRate", "0");
         }
 
-        variables.put("address", distributor.getAddress() != null ? distributor.getAddress() : "");
+        variables.put("address", profile.getAddress() != null ? profile.getAddress() : "");
         variables.put("portalUrl", portalUrl);
 
         String onboardDate = distributor.getCreatedAt() != null
@@ -277,9 +280,10 @@ public class MailService {
             return CompletableFuture.completedFuture(false);
         }
 
+        PartnerProfile profile = distributor != null ? distributor.getPartnerProfile() : null;
         String to = null;
-        if (distributor != null && StringUtils.hasText(distributor.getEmail())) {
-            to = distributor.getEmail().trim();
+        if (profile != null && StringUtils.hasText(profile.getEmail())) {
+            to = profile.getEmail().trim();
         } else if (StringUtils.hasText(order.getDistributorEmail())) {
             to = order.getDistributorEmail().trim();
         }
@@ -297,9 +301,11 @@ public class MailService {
         String subject = "Order Confirmation & Invoice - " + order.getOrderNumber();
         String invoiceFilename = "Invoice-" + order.getOrderNumber() + ".pdf";
 
+        String fallbackName = profile != null ? profile.getFullName() : (distributor != null ? distributor.getUsername() : "Partner");
+
         Map<String, Object> variables = new HashMap<>();
         variables.put("orderNumber", order.getOrderNumber());
-        variables.put("distributorName", order.getDistributorName() != null ? order.getDistributorName() : (distributor != null ? distributor.getFullName() : "Partner"));
+        variables.put("distributorName", order.getDistributorName() != null ? order.getDistributorName() : fallbackName);
         variables.put("orderDate", order.getCreatedAt() != null
                 ? order.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a"))
                 : java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")));

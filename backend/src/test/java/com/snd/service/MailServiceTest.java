@@ -2,6 +2,7 @@ package com.snd.service;
 
 import com.snd.dto.MailAttachment;
 import com.snd.dto.SalesDto;
+import com.snd.model.PartnerProfile;
 import com.snd.model.User;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
@@ -115,16 +116,21 @@ class MailServiceTest {
         User distributor = User.builder()
                 .id(1L)
                 .username("dist_gulshan")
-                .fullName("Gulshan Telecom")
-                .email("gulshan@example.com")
-                .phone("+8801700000000")
                 .role("DISTRIBUTOR")
                 .status("ACTIVE")
+                .createdAt(LocalDateTime.now())
+                .build();
+        PartnerProfile profile = PartnerProfile.builder()
+                .id(1L)
+                .user(distributor)
+                .companyName("Gulshan Telecom")
+                .email("gulshan@example.com")
+                .phone("+8801700000000")
                 .creditLimit(BigDecimal.valueOf(50000))
                 .discountRate(BigDecimal.valueOf(5.5))
                 .address("Gulshan-1, Dhaka")
-                .createdAt(LocalDateTime.now())
                 .build();
+        distributor.setPartnerProfile(profile);
 
         CompletableFuture<Boolean> future = mailService.sendDistributorOnboardEmail(distributor, "Secret123!");
         Boolean result = future.get();
@@ -139,9 +145,12 @@ class MailServiceTest {
     void sendDistributorOnboardEmail_skipWhenNoEmail() throws Exception {
         User distributor = User.builder()
                 .username("no_email_user")
-                .fullName("No Email")
+                .build();
+        PartnerProfile profile = PartnerProfile.builder()
+                .companyName("No Email")
                 .email("")
                 .build();
+        distributor.setPartnerProfile(profile);
 
         CompletableFuture<Boolean> future = mailService.sendDistributorOnboardEmail(distributor, "pass");
         Boolean result = future.get();
@@ -209,9 +218,15 @@ class MailServiceTest {
 
         User distributor = User.builder()
                 .id(1L)
-                .fullName("Gulshan Telecom")
+                .username("dist_gulshan")
+                .build();
+        PartnerProfile profile = PartnerProfile.builder()
+                .id(1L)
+                .user(distributor)
+                .companyName("Gulshan Telecom")
                 .email("gulshan@example.com")
                 .build();
+        distributor.setPartnerProfile(profile);
 
         byte[] invoicePdf = "%PDF-1.4 simulated invoice bytes".getBytes(StandardCharsets.UTF_8);
 

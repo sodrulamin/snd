@@ -1,8 +1,10 @@
 package com.snd.service;
 
 import com.snd.dto.AuthDto;
+import com.snd.model.PartnerProfile;
 import com.snd.model.User;
 import com.snd.repository.UserRepository;
+import java.math.BigDecimal;
 import com.snd.security.CustomUserDetails;
 import com.snd.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -34,16 +36,17 @@ public class AuthService {
 
         String jwt = tokenProvider.generateToken(authentication);
 
+        PartnerProfile profile = user.getPartnerProfile();
         return AuthDto.LoginResponse.builder()
                 .token(jwt)
                 .tokenType("Bearer")
                 .id(user.getId())
                 .username(user.getUsername())
-                .fullName(user.getFullName())
-                .email(user.getEmail())
+                .fullName(profile != null ? profile.getFullName() : user.getUsername())
+                .email(profile != null ? profile.getEmail() : null)
                 .role(user.getRole())
-                .balance(user.getBalance())
-                .creditLimit(user.getCreditLimit())
+                .balance(profile != null ? profile.getBalance() : BigDecimal.ZERO)
+                .creditLimit(profile != null ? profile.getCreditLimit() : BigDecimal.ZERO)
                 .build();
     }
 
@@ -67,18 +70,19 @@ public class AuthService {
     }
 
     private AuthDto.UserProfileDto mapToProfileDto(User user) {
+        PartnerProfile profile = user.getPartnerProfile();
         return AuthDto.UserProfileDto.builder()
                 .id(user.getId())
                 .username(user.getUsername())
-                .fullName(user.getFullName())
-                .email(user.getEmail())
-                .phone(user.getPhone())
+                .fullName(profile != null ? profile.getFullName() : user.getUsername())
+                .email(profile != null ? profile.getEmail() : null)
+                .phone(profile != null ? profile.getPhone() : null)
                 .role(user.getRole())
                 .status(user.getStatus())
-                .balance(user.getBalance())
-                .creditLimit(user.getCreditLimit())
-                .discountRate(user.getDiscountRate())
-                .address(user.getAddress())
+                .balance(profile != null ? profile.getBalance() : BigDecimal.ZERO)
+                .creditLimit(profile != null ? profile.getCreditLimit() : BigDecimal.ZERO)
+                .discountRate(profile != null ? profile.getDiscountRate() : BigDecimal.ZERO)
+                .address(profile != null ? profile.getAddress() : null)
                 .createdAt(user.getCreatedAt())
                 .build();
     }
