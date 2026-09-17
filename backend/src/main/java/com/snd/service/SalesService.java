@@ -365,6 +365,26 @@ public class SalesService {
         return orderRepository.filterOrders(filterDistIds, statusParam, filterPayments, filterDenomIds, start, end, searchParam, pageable).map(this::mapToOrderResponse);
     }
 
+    public List<SalesDto.SalesOrderResponse> getAllOrders(
+            List<Long> distributorIds,
+            String status,
+            List<String> paymentMethods,
+            List<Long> denominationIds,
+            LocalDateTime start,
+            LocalDateTime end,
+            String search
+    ) {
+        String searchParam = (search != null && !search.isBlank()) ? search.trim() : null;
+        String statusParam = (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) ? status.trim() : null;
+        List<Long> filterDistIds = (distributorIds != null && !distributorIds.isEmpty()) ? distributorIds : null;
+        List<String> filterPayments = (paymentMethods != null && !paymentMethods.isEmpty()) ? paymentMethods : null;
+        List<Long> filterDenomIds = (denominationIds != null && !denominationIds.isEmpty()) ? denominationIds : null;
+        return orderRepository.filterOrdersList(filterDistIds, statusParam, filterPayments, filterDenomIds, start, end, searchParam)
+                .stream()
+                .map(this::mapToOrderResponse)
+                .collect(Collectors.toList());
+    }
+
     public Page<SalesDto.SalesOrderResponse> getOrders(Long distributorId, String status, String paymentMethod, List<Long> denominationIds, LocalDateTime start, LocalDateTime end, String search, Pageable pageable) {
         List<Long> distIds = distributorId != null ? List.of(distributorId) : null;
         List<String> payMethods = (paymentMethod != null && !paymentMethod.isBlank()) ? List.of(paymentMethod) : null;

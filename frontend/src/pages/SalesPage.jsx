@@ -24,7 +24,8 @@ import {
   Check,
   CreditCard,
   Users,
-  Wallet
+  Wallet,
+  Loader2
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import InvoiceModal from '../components/InvoiceModal';
@@ -50,6 +51,7 @@ export default function SalesPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Delete Order State
   const [deletingOrder, setDeletingOrder] = useState(null);
@@ -642,6 +644,118 @@ export default function SalesPage() {
     }
   };
 
+  // Export ALL matching sales orders for current active filters
+  const handleExportCsv = async () => {
+    try {
+      setIsExporting(true);
+      const params = {
+        search: searchQuery ? searchQuery.trim() : undefined,
+        distributorIds: selectedDistributorIds.length > 0 ? selectedDistributorIds : undefined,
+        paymentMethods: selectedPaymentMethods.length > 0 ? selectedPaymentMethods : undefined,
+        status: filterOrderStatus || undefined,
+        denominationIds: selectedItemIds.length > 0 ? selectedItemIds : undefined,
+        startDate: filterStartDate ? filterStartDate + 'T00:00:00' : undefined,
+        endDate: filterEndDate ? filterEndDate + 'T23:59:59' : undefined,
+      };
+
+      const res = await salesService.getAllOrders(params);
+      const exportOrders = res.data?.data || [];
+
+      if (!exportOrders || exportOrders.length === 0) {
+        alert('No sales order data to export for the current filters.');
+        return;
+      }
+
+      const headers = [
+        'SL',
+        'Order #',
+        'Distributor',
+        'Distributor Phone',
+        'Distributor Email',
+        'Date',
+        'Item Code',
+        'Item Name',
+        'Start Serial',
+        'End Serial',
+        'Units (Cards)',
+        'Gross (BDT)',
+        'Discount (%)',
+        'Discount Amount (BDT)',
+        'Net Total (BDT)',
+        'Payment Method',
+        'Payment Status',
+        'Order Status',
+        'Notes',
+        'Created By'
+      ];
+
+      const rows = exportOrders.map((o, idx) => {
+        const ranges = getOrderSerialRanges(o);
+        const itemCodes = ranges.map((r) => r.code).filter(Boolean).join(' | ');
+        const startSerials = ranges.map((r) => r.start).filter(Boolean).join(' | ');
+        const endSerials = ranges.map((r) => r.end).filter(Boolean).join(' | ');
+
+        let itemNames = '';
+        if (o.items && o.items.length > 0) {
+          itemNames = o.items.map((i) => i.denominationName).filter(Boolean).join(' | ');
+        }
+
+        const dateStr = o.createdAt
+          ? (() => {
+              const d = new Date(o.createdAt);
+              return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            })()
+          : '';
+
+        const gross = Number(o.totalFaceValue || 0).toFixed(2);
+        const discountPct = Number(o.discountPercentage || 0).toFixed(1);
+        const discountAmt = Number(o.discountAmount || 0).toFixed(2);
+        const netTotal = Number(o.finalAmount || 0).toFixed(2);
+        const paymentMethod = o.paymentMethod ? o.paymentMethod.replace(/_/g, ' ') : '';
+
+        return [
+          idx + 1,
+          `"${(o.orderNumber || '').replace(/"/g, '""')}"`,
+          `"${(o.distributorName || '').replace(/"/g, '""')}"`,
+          `"${(o.distributorPhone || '').replace(/"/g, '""')}"`,
+          `"${(o.distributorEmail || '').replace(/"/g, '""')}"`,
+          `"${dateStr}"`,
+          `"${itemCodes.replace(/"/g, '""')}"`,
+          `"${itemNames.replace(/"/g, '""')}"`,
+          `"${startSerials.replace(/"/g, '""')}"`,
+          `"${endSerials.replace(/"/g, '""')}"`,
+          o.totalCardsCount || 0,
+          gross,
+          discountPct,
+          discountAmt,
+          netTotal,
+          `"${paymentMethod}"`,
+          `"${(o.paymentStatus || '').replace(/"/g, '""')}"`,
+          `"${(o.orderStatus || '').replace(/"/g, '""')}"`,
+          `"${(o.notes || '').replace(/"/g, '""')}"`,
+          `"${(o.createdBy || '').replace(/"/g, '""')}"`
+        ];
+      });
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const today = new Date().toISOString().split('T')[0];
+      link.setAttribute('download', `IPTSP_Sales_Orders_${today}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      console.error('Failed to export CSV', err);
+      alert('Failed to download CSV: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const totalOrdersCount = orders.length;
   const totalCardsSold = orders.reduce((acc, o) => acc + (o.totalCardsCount || 0), 0);
   const totalGrossValue = orders.reduce((acc, o) => acc + Number(o.totalFaceValue || 0), 0);
@@ -698,6 +812,21 @@ export default function SalesPage() {
               onToggleColumn={toggleColumn}
               onResetColumns={resetColumns}
             />
+
+            {/* Download CSV Button */}
+            <button
+              onClick={handleExportCsv}
+              disabled={isExporting}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs bg-slate-800/80 hover:bg-slate-700 text-teal-300 hover:text-white border border-slate-700/80 hover:border-teal-500/30 transition shadow-sm disabled:opacity-50"
+              title="Download all filtered sales orders as CSV"
+            >
+              {isExporting ? (
+                <Loader2 className="w-3.5 h-3.5 text-teal-400 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5 text-teal-400" />
+              )}
+              <span>{isExporting ? 'Exporting...' : 'Download CSV'}</span>
+            </button>
 
             <button
               onClick={() => setShowFilters(prev => !prev)}

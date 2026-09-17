@@ -77,6 +77,47 @@ public class SalesController {
         return ResponseEntity.ok(ApiResponse.success(orders));
     }
 
+    @GetMapping("/orders/all")
+    public ResponseEntity<ApiResponse<java.util.List<SalesDto.SalesOrderResponse>>> getAllOrders(
+            @RequestParam(required = false) Long distributorId,
+            @RequestParam(required = false) java.util.List<Long> distributorIds,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String paymentMethod,
+            @RequestParam(required = false) java.util.List<String> paymentMethods,
+            @RequestParam(required = false) Long denominationId,
+            @RequestParam(required = false) java.util.List<Long> denominationIds,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+        java.util.List<Long> mergedDistIds = new java.util.ArrayList<>();
+        if (distributorIds != null) {
+            mergedDistIds.addAll(distributorIds);
+        }
+        if (distributorId != null && !mergedDistIds.contains(distributorId)) {
+            mergedDistIds.add(distributorId);
+        }
+
+        java.util.List<String> mergedPayMethods = new java.util.ArrayList<>();
+        if (paymentMethods != null) {
+            mergedPayMethods.addAll(paymentMethods);
+        }
+        if (paymentMethod != null && !paymentMethod.isBlank() && !mergedPayMethods.contains(paymentMethod)) {
+            mergedPayMethods.add(paymentMethod);
+        }
+
+        java.util.List<Long> mergedDenomIds = new java.util.ArrayList<>();
+        if (denominationIds != null) {
+            mergedDenomIds.addAll(denominationIds);
+        }
+        if (denominationId != null && !mergedDenomIds.contains(denominationId)) {
+            mergedDenomIds.add(denominationId);
+        }
+
+        java.util.List<SalesDto.SalesOrderResponse> orders = salesService.getAllOrders(
+                mergedDistIds, status, mergedPayMethods, mergedDenomIds, startDate, endDate, search);
+        return ResponseEntity.ok(ApiResponse.success(orders));
+    }
+
     @GetMapping("/orders/{id}")
     public ResponseEntity<ApiResponse<SalesDto.SalesOrderResponse>> getOrderById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(salesService.getOrderById(id)));
