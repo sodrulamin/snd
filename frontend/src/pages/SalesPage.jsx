@@ -25,7 +25,9 @@ import {
   CreditCard,
   Users,
   Wallet,
-  Loader2
+  Loader2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import InvoiceModal from '../components/InvoiceModal';
@@ -33,6 +35,7 @@ import ColumnSelector from '../components/ColumnSelector';
 import SearchableDistributorSelect from '../components/SearchableDistributorSelect';
 import SearchableProductSelect from '../components/SearchableProductSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import RowsPerPageSelector from '../components/RowsPerPageSelector';
 import { salesService, distributorService, inventoryService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
@@ -48,8 +51,10 @@ export default function SalesPage() {
   const [distributors, setDistributors] = useState([]);
   const [denominations, setDenominations] = useState([]);
   const [batches, setBatches] = useState([]);
-  const [totalPages, setTotalPages] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -335,7 +340,7 @@ export default function SalesPage() {
     }
   };
 
-  const fetchOrders = async (page = 0, currentFilters = null) => {
+  const fetchOrders = async (page = currentPage, size = pageSize, currentFilters = null) => {
     try {
       setLoading(true);
       const activeFilters = currentFilters !== null ? currentFilters : {
@@ -350,13 +355,14 @@ export default function SalesPage() {
 
       const res = await salesService.getOrders({
         page,
-        size: 15,
+        size,
         ...activeFilters,
       });
 
       if (res.data?.success) {
-        setOrders(res.data.data.content);
-        setTotalPages(res.data.data.totalPages);
+        setOrders(res.data.data.content || []);
+        setTotalPages(res.data.data.totalPages || 1);
+        setTotalElements(res.data.data.totalElements || 0);
         setCurrentPage(page);
       }
     } catch (err) {
@@ -367,13 +373,13 @@ export default function SalesPage() {
     }
   };
 
-  const loadData = async (page = 0) => {
+  const loadData = async (page = 0, size = pageSize) => {
     try {
       setLoading(true);
       const [ordersRes, distsRes, denomsRes, batchesRes] = await Promise.all([
         salesService.getOrders({
           page,
-          size: 15,
+          size,
           distributorIds: selectedDistributorIds.length > 0 ? selectedDistributorIds : undefined,
           paymentMethods: selectedPaymentMethods.length > 0 ? selectedPaymentMethods : undefined,
           denominationIds: selectedItemIds.length > 0 ? selectedItemIds : undefined,
@@ -386,8 +392,9 @@ export default function SalesPage() {
       ]);
 
       if (ordersRes.data?.success) {
-        setOrders(ordersRes.data.data.content);
-        setTotalPages(ordersRes.data.data.totalPages);
+        setOrders(ordersRes.data.data.content || []);
+        setTotalPages(ordersRes.data.data.totalPages || 1);
+        setTotalElements(ordersRes.data.data.totalElements || 0);
         setCurrentPage(page);
       }
       if (distsRes.data?.success) {
@@ -431,7 +438,7 @@ export default function SalesPage() {
       setDeletingOrder(null);
       setSuccessMessage(res.data?.message || `Order ${orderNum} deleted and inventory successfully restored.`);
       setTimeout(() => setSuccessMessage(null), 5000);
-      loadData(currentPage);
+      loadData(currentPage, pageSize);
     } catch (err) {
       setDeleteError(err.response?.data?.message || err.message || 'Failed to delete order');
     } finally {
@@ -441,7 +448,7 @@ export default function SalesPage() {
 
   const handleApplyFilters = (e) => {
     if (e) e.preventDefault();
-    fetchOrders(0);
+    fetchOrders(0, pageSize);
   };
 
   const handleResetFilters = () => {
@@ -455,7 +462,7 @@ export default function SalesPage() {
     setSelectedItemIds([]);
     setFilterStartDate(monthStart);
     setFilterEndDate(today);
-    fetchOrders(0, {
+    fetchOrders(0, pageSize, {
       search: undefined,
       distributorIds: undefined,
       paymentMethods: undefined,
@@ -623,7 +630,7 @@ export default function SalesPage() {
         setOrderNotes('');
         const first = denominations[0];
         setOrderItems([{ denominationId: first?.id || '', startSerialNumber: '', endSerialNumber: '', availableStockInfo: null }]);
-        loadData(0);
+        loadData(0, pageSize);
         handleViewInvoice(res.data.data.id);
       }
     } catch (err) {
@@ -994,7 +1001,7 @@ export default function SalesPage() {
                       onClick={() => {
                         const newIds = selectedItemIds.filter((v) => v !== id);
                         setSelectedItemIds(newIds);
-                        fetchOrders(0, {
+                        fetchOrders(0, pageSize, {
                           search: searchQuery || undefined,
                           distributorIds: selectedDistributorIds.length > 0 ? selectedDistributorIds : undefined,
                           paymentMethods: selectedPaymentMethods.length > 0 ? selectedPaymentMethods : undefined,
@@ -1027,7 +1034,7 @@ export default function SalesPage() {
                       onClick={() => {
                         const newDistIds = selectedDistributorIds.filter((v) => v !== id);
                         setSelectedDistributorIds(newDistIds);
-                        fetchOrders(0, {
+                        fetchOrders(0, pageSize, {
                           search: searchQuery || undefined,
                           distributorIds: newDistIds.length > 0 ? newDistIds : undefined,
                           paymentMethods: selectedPaymentMethods.length > 0 ? selectedPaymentMethods : undefined,
@@ -1064,7 +1071,7 @@ export default function SalesPage() {
                       onClick={() => {
                         const newPays = selectedPaymentMethods.filter((v) => v !== method);
                         setSelectedPaymentMethods(newPays);
-                        fetchOrders(0, {
+                        fetchOrders(0, pageSize, {
                           search: searchQuery || undefined,
                           distributorIds: selectedDistributorIds.length > 0 ? selectedDistributorIds : undefined,
                           paymentMethods: newPays.length > 0 ? newPays : undefined,
@@ -1089,7 +1096,7 @@ export default function SalesPage() {
                   setSelectedItemIds([]);
                   setSelectedDistributorIds([]);
                   setSelectedPaymentMethods([]);
-                  fetchOrders(0, {
+                  fetchOrders(0, pageSize, {
                     search: searchQuery || undefined,
                     distributorIds: undefined,
                     paymentMethods: undefined,
@@ -1156,7 +1163,7 @@ export default function SalesPage() {
                   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                   setFilterStartDate(monthStart);
                   setFilterEndDate(today);
-                  fetchOrders(0, {
+                  fetchOrders(0, pageSize, {
                     search: searchQuery || undefined,
                     distributorIds: selectedDistributorIds.length > 0 ? selectedDistributorIds : undefined,
                     paymentMethods: selectedPaymentMethods.length > 0 ? selectedPaymentMethods : undefined,
@@ -1175,42 +1182,46 @@ export default function SalesPage() {
         </div>
         )}
 
-        {loading ? (
-          <div className="py-12 flex justify-center">
-            <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        ) : orders.length === 0 ? (
-          <div className="text-center py-12 border border-dashed border-slate-800 rounded-2xl">
-            <ShoppingCart className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-slate-300">No Sales Orders Found</p>
-            <p className="text-xs text-slate-500 mt-1">Try adjusting your search keywords or active filters</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-950/60 text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-800">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead className="bg-slate-950/60 text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-800">
+              <tr>
+                {visibleColumns.sl && <th className="px-4 py-3 text-center w-12">SL</th>}
+                {visibleColumns.orderNumber && <th className="px-4 py-3">Order #</th>}
+                {visibleColumns.distributor && <th className="px-4 py-3">Distributor</th>}
+                {visibleColumns.date && <th className="px-4 py-3">Date</th>}
+                {visibleColumns.itemCode && <th className="px-4 py-3">Item Code</th>}
+                {visibleColumns.startSerial && <th className="px-4 py-3">Start Serial</th>}
+                {visibleColumns.endSerial && <th className="px-4 py-3">End Serial</th>}
+                {visibleColumns.units && <th className="px-4 py-3">Units</th>}
+                {visibleColumns.gross && <th className="px-4 py-3">Gross</th>}
+                {visibleColumns.discount && <th className="px-4 py-3">Discount</th>}
+                {visibleColumns.netTotal && <th className="px-4 py-3">Net Total</th>}
+                {visibleColumns.payment && <th className="px-4 py-3">Payment</th>}
+                {visibleColumns.actions && <th className="px-4 py-3 text-right">Actions</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+              {loading ? (
                 <tr>
-                  {visibleColumns.sl && <th className="px-4 py-3 text-center w-12">SL</th>}
-                  {visibleColumns.orderNumber && <th className="px-4 py-3">Order #</th>}
-                  {visibleColumns.distributor && <th className="px-4 py-3">Distributor</th>}
-                  {visibleColumns.date && <th className="px-4 py-3">Date</th>}
-                  {visibleColumns.itemCode && <th className="px-4 py-3">Item Code</th>}
-                  {visibleColumns.startSerial && <th className="px-4 py-3">Start Serial</th>}
-                  {visibleColumns.endSerial && <th className="px-4 py-3">End Serial</th>}
-                  {visibleColumns.units && <th className="px-4 py-3">Units</th>}
-                  {visibleColumns.gross && <th className="px-4 py-3">Gross</th>}
-                  {visibleColumns.discount && <th className="px-4 py-3">Discount</th>}
-                  {visibleColumns.netTotal && <th className="px-4 py-3">Net Total</th>}
-                  {visibleColumns.payment && <th className="px-4 py-3">Payment</th>}
-                  {visibleColumns.actions && <th className="px-4 py-3 text-right">Actions</th>}
+                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length || 1} className="p-8 text-center text-slate-500">
+                    <div className="inline-block w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {orders.map((o, idx) => (
+              ) : orders.length === 0 ? (
+                <tr>
+                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length || 1} className="p-8 text-center text-slate-500">
+                    <ShoppingCart className="w-10 h-10 text-slate-600 mx-auto mb-2 opacity-60" />
+                    <p className="text-sm font-semibold text-slate-300">No Sales Orders Found</p>
+                    <p className="text-xs text-slate-500 mt-1">Try adjusting your search keywords or active filters</p>
+                  </td>
+                </tr>
+              ) : (
+                orders.map((o, idx) => (
                   <tr key={o.id} className="hover:bg-slate-800/30 transition">
                     {visibleColumns.sl && (
                       <td className="px-4 py-3 text-center font-mono text-slate-400 text-xs font-semibold">
-                        {(currentPage * 15) + idx + 1}
+                        {(currentPage * pageSize) + idx + 1}
                       </td>
                     )}
                     {visibleColumns.orderNumber && (
@@ -1235,14 +1246,10 @@ export default function SalesPage() {
                           return (
                             <div className="space-y-1">
                               {ranges.map((r, i) => (
-                                <div key={i} className="text-xs whitespace-nowrap">
-                                  {r.code ? (
-                                    <span className="inline-block px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 border border-teal-500/20 font-bold font-mono text-[11px]">
-                                      {r.code}
-                                    </span>
-                                  ) : (
-                                    <span className="text-slate-600">-</span>
-                                  )}
+                                <div key={i}>
+                                  <span className="px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 font-mono text-[10px] font-bold border border-teal-500/20 whitespace-nowrap">
+                                    {r.code || 'IPTSP'}
+                                  </span>
                                 </div>
                               ))}
                             </div>
@@ -1335,33 +1342,72 @@ export default function SalesPage() {
                       </td>
                     )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        {totalPages > 1 && (
-          <div className="flex justify-between items-center pt-4 border-t border-slate-800 text-xs text-slate-400">
-            <span>Page {currentPage + 1} of {totalPages}</span>
-            <div className="flex gap-2">
-              <button
-                disabled={currentPage === 0}
-                onClick={() => fetchOrders(currentPage - 1)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-semibold transition"
-              >
-                Previous
-              </button>
-              <button
-                disabled={currentPage + 1 >= totalPages}
-                onClick={() => fetchOrders(currentPage + 1)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-semibold transition"
-              >
-                Next
-              </button>
+        {/* Backend Pagination Bar */}
+        <div className="p-4 border-t border-slate-800/80 bg-slate-950/40 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-4 text-slate-400">
+            <div>
+              {totalElements > 0 ? (
+                <>
+                  Showing <span className="text-white font-medium">{(currentPage * pageSize) + 1}</span> to{' '}
+                  <span className="text-white font-medium">
+                    {Math.min((currentPage + 1) * pageSize, totalElements)}
+                  </span>{' '}
+                  of <span className="text-white font-medium">{totalElements}</span> orders
+                </>
+              ) : (
+                '0 orders available'
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 border-l border-slate-800 pl-4">
+              <span className="text-slate-400">Rows per page:</span>
+              <RowsPerPageSelector
+                value={pageSize}
+                onChange={(newSize) => {
+                  setPageSize(newSize);
+                  fetchOrders(0, newSize);
+                }}
+              />
             </div>
           </div>
-        )}
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const prevPage = Math.max(0, currentPage - 1);
+                fetchOrders(prevPage, pageSize);
+              }}
+              disabled={currentPage === 0 || loading}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>Previous</span>
+            </button>
+
+            <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-mono">
+              Page <strong className="text-white font-semibold">{currentPage + 1}</strong> of{' '}
+              <strong className="text-white font-semibold">{totalPages || 1}</strong>
+            </span>
+
+            <button
+              onClick={() => {
+                const nextPage = Math.min(totalPages - 1, currentPage + 1);
+                fetchOrders(nextPage, pageSize);
+              }}
+              disabled={currentPage >= totalPages - 1 || loading}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+            >
+              <span>Next</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* New Sales Order Modal */}

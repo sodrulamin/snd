@@ -29,6 +29,7 @@ import {
 import StatCard from '../components/StatCard';
 import ColumnSelector from '../components/ColumnSelector';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import RowsPerPageSelector from '../components/RowsPerPageSelector';
 import { inventoryService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
@@ -812,20 +813,13 @@ export default function InventoryPage() {
 
             <div className="flex items-center gap-2 border-l border-slate-800 pl-4">
               <span className="text-slate-400">Rows per page:</span>
-              <select
+              <RowsPerPageSelector
                 value={pageSize}
-                onChange={(e) => {
-                  const newSize = Number(e.target.value);
+                onChange={(newSize) => {
                   setPageSize(newSize);
                   setCurrentPage(0);
                 }}
-                className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-teal-500 font-medium cursor-pointer"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
+              />
             </div>
           </div>
 
