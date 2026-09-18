@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -8,17 +8,20 @@ import {
   BarChart3, 
   LogOut, 
   CreditCard, 
-  Tag,
-  Settings,
-  Palette,
-  ChevronDown,
-  ChevronRight,
-  GripVertical,
-  X,
-  Megaphone
+  Tag, 
+  Settings, 
+  Palette, 
+  ChevronDown, 
+  ChevronUp,
+  ChevronRight, 
+  GripVertical, 
+  X, 
+  Megaphone,
+  KeyRound
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
+import ChangePasswordModal from './ChangePasswordModal';
 
 const MIN_WIDTH = 80;
 const COLLAPSE_THRESHOLD = 160;
@@ -56,6 +59,20 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const isSettingsActive = location.pathname.startsWith('/settings');
   const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsActive);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileContainerRef = useRef(null);
+
+  // Close profile popup on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileContainerRef.current && !profileContainerRef.current.contains(event.target)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const toggleCollapse = () => {
     if (isCollapsed) {
@@ -247,35 +264,6 @@ export default function Sidebar({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* User Profile Box */}
-        <div 
-          className={`mx-3 mt-4 p-2.5 rounded-xl bg-slate-800/50 border border-slate-700/50 flex items-center transition-all duration-200 ${
-            isCollapsed ? 'lg:justify-center lg:p-2' : 'gap-3'
-          }`}
-          title={`${user?.fullName || user?.username || 'User'} (${user?.role || 'USER'})`}
-        >
-          <div className="w-9 h-9 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold text-sm flex-shrink-0">
-            {user?.fullName ? user.fullName.charAt(0) : 'U'}
-          </div>
-          <div className={`overflow-hidden flex-1 ${isCollapsed ? 'lg:hidden' : 'block'}`}>
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-semibold text-white truncate">{user?.fullName || user?.username}</span>
-            </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold ${
-                isAdmin ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-              }`}>
-                {user?.role || 'USER'}
-              </span>
-              {user?.balance !== undefined && !isAdmin && (
-                <span className="text-[11px] text-teal-400 font-medium truncate">
-                  ৳{Number(user.balance).toLocaleString()}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* Unified Nav Menu */}
         <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
           {navItems.map((item) => {
@@ -395,25 +383,131 @@ export default function Sidebar({ isOpen, onClose }) {
                     </NavLink>
                   );
                 })}
+
               </div>
             )}
           </div>
         </nav>
 
-        {/* Sign Out Footer */}
-        <div className="p-3 border-t border-slate-800/80">
+        {/* Profile & User Actions Footer */}
+        <div ref={profileContainerRef} className="relative p-2.5 border-t border-slate-800/80 bg-slate-900/40">
+          {isProfileMenuOpen && (
+            <div 
+              className={`absolute z-50 bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl p-2 shadow-2xl shadow-black/80 animate-in fade-in zoom-in-95 duration-150 ${
+                isCollapsed 
+                  ? 'bottom-full mb-2 left-2 right-2 lg:bottom-2 lg:left-full lg:ml-3 lg:w-64' 
+                  : 'bottom-full mb-2 left-2 right-2'
+              }`}
+            >
+              {/* User Info Header in Popup */}
+              <div className="px-3 py-2.5 mb-1.5 border-b border-slate-800/80 bg-slate-800/40 rounded-xl">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                    {user?.fullName ? user.fullName.charAt(0) : 'U'}
+                  </div>
+                  <div className="overflow-hidden min-w-0 flex-1">
+                    <div className="text-xs font-semibold text-white truncate">
+                      {user?.fullName || user?.username || 'User'}
+                    </div>
+                    {user?.username && (
+                      <div className="text-[11px] text-slate-400 truncate">
+                        @{user.username}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-800/60">
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                    isAdmin ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                  }`}>
+                    {user?.role || 'USER'}
+                  </span>
+                  {user?.balance !== undefined && !isAdmin && (
+                    <span className="text-[11px] text-teal-400 font-medium">
+                      ৳{Number(user.balance).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Sub-menu Items */}
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    if (onClose) onClose();
+                    setShowPasswordModal(true);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors duration-150 cursor-pointer"
+                >
+                  <KeyRound className="w-4 h-4 text-teal-400 flex-shrink-0" />
+                  <span>Change Password</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors duration-150 cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4 text-red-400 flex-shrink-0" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Profile Card Button */}
           <button
-            onClick={handleLogout}
-            title={isCollapsed ? 'Sign Out' : undefined}
-            className={`w-full flex items-center justify-center gap-2 rounded-xl font-semibold text-sm text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 outline-none focus:outline-none focus:ring-0 transition-colors duration-150 active:scale-[0.98] ${
-              isCollapsed ? 'py-2.5 px-2' : 'px-4 py-2.5'
-            }`}
+            type="button"
+            onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+            title={`${user?.fullName || user?.username || 'User'} (${user?.role || 'USER'})`}
+            className={`w-full p-2 rounded-xl flex items-center transition-all duration-150 cursor-pointer text-left border ${
+              isProfileMenuOpen 
+                ? 'bg-slate-800/90 border-slate-700 shadow-md ring-1 ring-teal-500/30' 
+                : 'bg-slate-800/40 hover:bg-slate-800/70 border-slate-800 hover:border-slate-700/60'
+            } ${isCollapsed ? 'lg:justify-center lg:p-2' : 'gap-2.5'}`}
           >
-            <LogOut className="w-4 h-4 flex-shrink-0" />
-            <span className={`whitespace-nowrap ${isCollapsed ? 'lg:hidden' : 'block'}`}>Sign Out</span>
+            <div className="w-9 h-9 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold text-sm flex-shrink-0">
+              {user?.fullName ? user.fullName.charAt(0) : 'U'}
+            </div>
+
+            <div className={`overflow-hidden flex-1 min-w-0 ${isCollapsed ? 'lg:hidden' : 'block'}`}>
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-xs font-semibold text-white truncate">
+                  {user?.fullName || user?.username}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                  isAdmin ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                }`}>
+                  {user?.role || 'USER'}
+                </span>
+                {user?.balance !== undefined && !isAdmin && (
+                  <span className="text-[11px] text-teal-400 font-medium truncate">
+                    ৳{Number(user.balance).toLocaleString()}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className={`text-slate-400 transition-transform duration-200 ${isCollapsed ? 'lg:hidden' : 'block'} ${
+              isProfileMenuOpen ? 'rotate-180 text-teal-400' : ''
+            }`}>
+              <ChevronUp className="w-4 h-4 flex-shrink-0" />
+            </div>
           </button>
         </div>
       </aside>
+
+      <ChangePasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+      />
     </>
   );
 }

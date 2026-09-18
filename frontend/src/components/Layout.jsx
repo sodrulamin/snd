@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Menu, CreditCard } from 'lucide-react';
+import { Menu, CreditCard, KeyRound } from 'lucide-react';
 import Sidebar from './Sidebar';
+import ChangePasswordModal from './ChangePasswordModal';
 import { useAuth } from '../context/AuthContext';
 
 export default function Layout() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const { user, isAdmin } = useAuth();
 
   return (
@@ -36,14 +38,21 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-              isAdmin ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-            }`}>
-              {user?.role || 'USER'}
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold text-xs">
-              {user?.fullName ? user.fullName.charAt(0) : 'U'}
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowPasswordModal(true)}
+              className="flex items-center gap-2 p-1 rounded-xl hover:bg-slate-800/80 transition cursor-pointer"
+              title="Click to Change Password"
+            >
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                isAdmin ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+              }`}>
+                {user?.role || 'USER'}
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold text-xs">
+                {user?.fullName ? user.fullName.charAt(0) : 'U'}
+              </div>
+            </button>
           </div>
         </header>
 
@@ -52,6 +61,11 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      <ChangePasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+      />
     </div>
   );
 }
