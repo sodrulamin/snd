@@ -1,6 +1,6 @@
 package com.snd.service;
 
-import com.snd.dto.DistributorDto;
+import com.snd.dto.distributor.*;
 import com.snd.model.DistributorTransaction;
 import com.snd.model.PartnerProfile;
 import com.snd.model.SalesOrder;
@@ -33,20 +33,20 @@ public class DistributorService {
     private final SMSService smsService;
     private final MailService mailService;
 
-    public List<DistributorDto.DistributorResponse> getAllDistributors() {
+    public List<DistributorResponse> getAllDistributors() {
         return userRepository.findByRole("DISTRIBUTOR").stream()
                 .map(this::mapToDistributorResponse)
                 .collect(Collectors.toList());
     }
 
-    public DistributorDto.DistributorResponse getDistributorById(Long id) {
+    public DistributorResponse getDistributorById(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Distributor not found: " + id));
         return mapToDistributorResponse(user);
     }
 
     @Transactional
-    public DistributorDto.DistributorResponse createDistributor(DistributorDto.DistributorRequest request) {
+    public DistributorResponse createDistributor(DistributorRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException("Username already exists: " + request.getUsername());
         }
@@ -90,7 +90,7 @@ public class DistributorService {
     }
 
     @Transactional
-    public DistributorDto.DistributorResponse updateDistributor(Long id, DistributorDto.DistributorRequest request) {
+    public DistributorResponse updateDistributor(Long id, DistributorRequest request) {
         User distributor = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Distributor not found: " + id));
 
@@ -128,7 +128,7 @@ public class DistributorService {
     }
 
     @Transactional
-    public DistributorDto.TransactionDto processWalletAdjustment(DistributorDto.WalletTopUpRequest request) {
+    public TransactionDto processWalletAdjustment(WalletTopUpRequest request) {
         User distributor = userRepository.findById(request.getDistributorId())
                 .orElseThrow(() -> new RuntimeException("Distributor not found: " + request.getDistributorId()));
 
@@ -164,18 +164,18 @@ public class DistributorService {
         return mapToTransactionDto(txn);
     }
 
-    public Page<DistributorDto.TransactionDto> getDistributorTransactions(Long distributorId, Pageable pageable) {
+    public Page<TransactionDto> getDistributorTransactions(Long distributorId, Pageable pageable) {
         return transactionRepository.findByDistributorIdOrderByCreatedAtDesc(distributorId, pageable)
                 .map(this::mapToTransactionDto);
     }
 
-    public Page<DistributorDto.TransactionDto> getAllTransactions(Pageable pageable) {
+    public Page<TransactionDto> getAllTransactions(Pageable pageable) {
         return transactionRepository.findAllByOrderByCreatedAtDesc(pageable)
                 .map(this::mapToTransactionDto);
     }
 
     @Transactional
-    public DistributorDto.DistributorResponse toggleDistributorStatus(Long id) {
+    public DistributorResponse toggleDistributorStatus(Long id) {
         User distributor = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Distributor not found: " + id));
 
@@ -190,7 +190,7 @@ public class DistributorService {
     }
 
     @Transactional
-    public DistributorDto.DistributorResponse updateDistributorStatus(Long id, String status) {
+    public DistributorResponse updateDistributorStatus(Long id, String status) {
         User distributor = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Distributor not found: " + id));
 
@@ -226,7 +226,7 @@ public class DistributorService {
         userRepository.delete(distributor);
     }
 
-    private DistributorDto.DistributorResponse mapToDistributorResponse(User u) {
+    private DistributorResponse mapToDistributorResponse(User u) {
         List<SalesOrder> orders = salesOrderRepository.findByDistributorIdOrderByCreatedAtDesc(u.getId());
         BigDecimal totalPurchases = orders.stream()
                 .map(SalesOrder::getFinalAmount)
@@ -243,7 +243,7 @@ public class DistributorService {
         String phone = p != null ? p.getPhone() : null;
         String address = p != null ? p.getAddress() : null;
 
-        return DistributorDto.DistributorResponse.builder()
+        return DistributorResponse.builder()
                 .id(u.getId())
                 .username(u.getUsername())
                 .fullName(fullName)
@@ -262,12 +262,12 @@ public class DistributorService {
                 .build();
     }
 
-    private DistributorDto.TransactionDto mapToTransactionDto(DistributorTransaction t) {
+    private TransactionDto mapToTransactionDto(DistributorTransaction t) {
         String distName = (t.getDistributor() != null && t.getDistributor().getPartnerProfile() != null)
                 ? t.getDistributor().getPartnerProfile().getCompanyName()
                 : (t.getDistributor() != null ? t.getDistributor().getUsername() : "N/A");
 
-        return DistributorDto.TransactionDto.builder()
+        return TransactionDto.builder()
                 .id(t.getId())
                 .distributorId(t.getDistributor().getId())
                 .distributorName(distName)

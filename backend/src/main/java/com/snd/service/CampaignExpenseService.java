@@ -1,6 +1,6 @@
 package com.snd.service;
 
-import com.snd.dto.CampaignExpenseDto;
+import com.snd.dto.campaign.*;
 import com.snd.enums.BatchStatus;
 import com.snd.model.CampaignExpense;
 import com.snd.model.CampaignExpenseItem;
@@ -29,7 +29,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,8 +44,8 @@ public class CampaignExpenseService {
     private static final Pattern SERIAL_PATTERN = Pattern.compile("^(.*?)(\\d+)$");
 
     @Transactional
-    public CampaignExpenseDto.CampaignExpenseResponse createCampaignExpense(
-            CampaignExpenseDto.CreateCampaignExpenseRequest request, String createdByUsername) {
+    public CampaignExpenseResponse createCampaignExpense(
+            CreateCampaignExpenseRequest request, String createdByUsername) {
 
         String refNo = request.getReferenceNo();
         if (!StringUtils.hasText(refNo)) {
@@ -112,8 +111,8 @@ public class CampaignExpenseService {
     }
 
     @Transactional
-    public CampaignExpenseDto.CampaignExpenseResponse addCardExpensesToCampaign(
-            Long campaignId, CampaignExpenseDto.AddExpenseItemsRequest request, String addedByUsername) {
+    public CampaignExpenseResponse addCardExpensesToCampaign(
+            Long campaignId, AddExpenseItemsRequest request, String addedByUsername) {
 
         CampaignExpense expense = campaignExpenseRepository.findById(campaignId)
                 .orElseThrow(() -> new RuntimeException("Campaign expense record not found: " + campaignId));
@@ -138,8 +137,8 @@ public class CampaignExpenseService {
     }
 
     @Transactional
-    public CampaignExpenseDto.CampaignExpenseResponse updateCampaignDetails(
-            Long campaignId, CampaignExpenseDto.UpdateCampaignRequest request, String updatedByUsername) {
+    public CampaignExpenseResponse updateCampaignDetails(
+            Long campaignId, UpdateCampaignRequest request, String updatedByUsername) {
 
         CampaignExpense expense = campaignExpenseRepository.findById(campaignId)
                 .orElseThrow(() -> new RuntimeException("Campaign expense record not found: " + campaignId));
@@ -193,7 +192,7 @@ public class CampaignExpenseService {
 
     private List<CampaignExpenseItem> processAndDisburseItems(
             CampaignExpense campaign,
-            List<CampaignExpenseDto.CampaignExpenseItemRequest> itemRequests,
+            List<CampaignExpenseItemRequest> itemRequests,
             String createdByUsername) {
 
         List<CampaignExpenseItem> items = new ArrayList<>();
@@ -203,7 +202,7 @@ public class CampaignExpenseService {
         List<RechargeCard> cardsToUpdate = new ArrayList<>();
         String category = campaign.getPurposeCategory() != null ? campaign.getPurposeCategory().trim().toUpperCase() : "CAMPAIGN";
 
-        for (CampaignExpenseDto.CampaignExpenseItemRequest itemReq : itemRequests) {
+        for (CampaignExpenseItemRequest itemReq : itemRequests) {
             CardDenomination denomination = denominationRepository.findById(itemReq.getDenominationId())
                     .orElseThrow(() -> new RuntimeException("Card product not found: " + itemReq.getDenominationId()));
 
@@ -389,7 +388,7 @@ public class CampaignExpenseService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CampaignExpenseDto.CampaignExpenseResponse> getCampaignExpenses(
+    public Page<CampaignExpenseResponse> getCampaignExpenses(
             String category, LocalDateTime startDate, LocalDateTime endDate, String search, Pageable pageable) {
         String cleanCategory = (category != null && !category.isBlank() && !"ALL".equalsIgnoreCase(category)) ? category.trim().toUpperCase() : null;
         String cleanSearch = (search != null && !search.isBlank()) ? search.trim() : null;
@@ -399,14 +398,14 @@ public class CampaignExpenseService {
     }
 
     @Transactional(readOnly = true)
-    public CampaignExpenseDto.CampaignExpenseResponse getCampaignExpenseById(Long id) {
+    public CampaignExpenseResponse getCampaignExpenseById(Long id) {
         CampaignExpense expense = campaignExpenseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Campaign expense record not found: " + id));
         return mapToResponse(expense);
     }
 
     @Transactional(readOnly = true)
-    public CampaignExpenseDto.CampaignCalculationSummaryDto getCalculationSummary(LocalDateTime startDate, LocalDateTime endDate) {
+    public CampaignCalculationSummaryDto getCalculationSummary(LocalDateTime startDate, LocalDateTime endDate) {
         Long totalCards = campaignExpenseRepository.sumTotalCardsBetween(startDate, endDate);
         BigDecimal totalWholesale = campaignExpenseRepository.sumTotalWholesaleCostBetween(startDate, endDate);
         BigDecimal totalFace = campaignExpenseRepository.sumTotalFaceValueBetween(startDate, endDate);
@@ -421,7 +420,7 @@ public class CampaignExpenseService {
                 : BigDecimal.ZERO;
 
         List<Object[]> categoryData = campaignExpenseRepository.aggregateByCategoryBetween(startDate, endDate);
-        List<CampaignExpenseDto.CategoryBreakdownDto> categoryBreakdowns = new ArrayList<>();
+        List<CategoryBreakdownDto> categoryBreakdowns = new ArrayList<>();
         long totalAllCampaigns = 0;
 
         for (Object[] row : categoryData) {
@@ -436,7 +435,7 @@ public class CampaignExpenseService {
                     ? catWholesale.divide(wholesaleVal, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)).doubleValue()
                     : 0.0;
 
-            categoryBreakdowns.add(CampaignExpenseDto.CategoryBreakdownDto.builder()
+            categoryBreakdowns.add(CategoryBreakdownDto.builder()
                     .category(cat)
                     .count(count)
                     .totalCards(cards)
@@ -447,7 +446,7 @@ public class CampaignExpenseService {
         }
 
         List<Object[]> denomData = campaignExpenseItemRepository.aggregateByDenominationBetween(startDate, endDate);
-        List<CampaignExpenseDto.DenominationBreakdownDto> denomBreakdowns = new ArrayList<>();
+        List<DenominationBreakdownDto> denomBreakdowns = new ArrayList<>();
 
         for (Object[] row : denomData) {
             Long denomId = ((Number) row[0]).longValue();
@@ -457,7 +456,7 @@ public class CampaignExpenseService {
             BigDecimal dWholesale = (BigDecimal) row[4];
             BigDecimal dFace = (BigDecimal) row[5];
 
-            denomBreakdowns.add(CampaignExpenseDto.DenominationBreakdownDto.builder()
+            denomBreakdowns.add(DenominationBreakdownDto.builder()
                     .denominationId(denomId)
                     .denominationName(name)
                     .denominationCode(code)
@@ -467,7 +466,7 @@ public class CampaignExpenseService {
                     .build());
         }
 
-        return CampaignExpenseDto.CampaignCalculationSummaryDto.builder()
+        return CampaignCalculationSummaryDto.builder()
                 .totalCampaigns(totalAllCampaigns)
                 .totalCardsSpent(cardsCount)
                 .totalWholesaleCost(wholesaleVal)
@@ -479,14 +478,14 @@ public class CampaignExpenseService {
                 .build();
     }
 
-    private CampaignExpenseDto.CampaignExpenseResponse mapToResponse(CampaignExpense expense) {
-        List<CampaignExpenseDto.CampaignExpenseItemDto> itemDtos = new ArrayList<>();
+    private CampaignExpenseResponse mapToResponse(CampaignExpense expense) {
+        List<CampaignExpenseItemDto> itemDtos = new ArrayList<>();
         List<String> rangeSummaries = new ArrayList<>();
 
         if (expense.getItems() != null) {
             for (CampaignExpenseItem item : expense.getItems()) {
                 BigDecimal variance = item.getSubtotalFaceValue().subtract(item.getSubtotalWholesaleCost());
-                itemDtos.add(CampaignExpenseDto.CampaignExpenseItemDto.builder()
+                itemDtos.add(CampaignExpenseItemDto.builder()
                         .id(item.getId())
                         .denominationId(item.getDenomination().getId())
                         .denominationName(item.getDenomination().getName())
@@ -508,7 +507,7 @@ public class CampaignExpenseService {
             }
         }
 
-        return CampaignExpenseDto.CampaignExpenseResponse.builder()
+        return CampaignExpenseResponse.builder()
                 .id(expense.getId())
                 .referenceNo(expense.getReferenceNo())
                 .campaignName(expense.getCampaignName())

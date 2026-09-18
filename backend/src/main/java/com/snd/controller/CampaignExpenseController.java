@@ -1,7 +1,7 @@
 package com.snd.controller;
 
 import com.snd.dto.ApiResponse;
-import com.snd.dto.CampaignExpenseDto;
+import com.snd.dto.campaign.*;
 import com.snd.service.CampaignExpenseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,37 +26,37 @@ public class CampaignExpenseController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<CampaignExpenseDto.CampaignExpenseResponse>> createCampaignExpense(
-            @Valid @RequestBody CampaignExpenseDto.CreateCampaignExpenseRequest request,
+    public ResponseEntity<ApiResponse<CampaignExpenseResponse>> createCampaignExpense(
+            @Valid @RequestBody CreateCampaignExpenseRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-        CampaignExpenseDto.CampaignExpenseResponse response = campaignExpenseService.createCampaignExpense(request, userDetails.getUsername());
+        CampaignExpenseResponse response = campaignExpenseService.createCampaignExpense(request, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(response, "Cards disbursed and campaign expense recorded successfully"));
     }
 
     @PostMapping("/{id}/items")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<CampaignExpenseDto.CampaignExpenseResponse>> addCardExpensesToCampaign(
+    public ResponseEntity<ApiResponse<CampaignExpenseResponse>> addCardExpensesToCampaign(
             @PathVariable Long id,
-            @Valid @RequestBody CampaignExpenseDto.AddExpenseItemsRequest request,
+            @Valid @RequestBody AddExpenseItemsRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-        CampaignExpenseDto.CampaignExpenseResponse response = campaignExpenseService.addCardExpensesToCampaign(
+        CampaignExpenseResponse response = campaignExpenseService.addCardExpensesToCampaign(
                 id, request, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(response, "Cards added to campaign and disbursed successfully"));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<CampaignExpenseDto.CampaignExpenseResponse>> updateCampaignDetails(
+    public ResponseEntity<ApiResponse<CampaignExpenseResponse>> updateCampaignDetails(
             @PathVariable Long id,
-            @Valid @RequestBody CampaignExpenseDto.UpdateCampaignRequest request,
+            @Valid @RequestBody UpdateCampaignRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-        CampaignExpenseDto.CampaignExpenseResponse response = campaignExpenseService.updateCampaignDetails(
+        CampaignExpenseResponse response = campaignExpenseService.updateCampaignDetails(
                 id, request, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(response, "Campaign details updated successfully"));
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<CampaignExpenseDto.CampaignExpenseResponse>>> getCampaignExpenses(
+    public ResponseEntity<ApiResponse<Page<CampaignExpenseResponse>>> getCampaignExpenses(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -67,19 +67,19 @@ public class CampaignExpenseController {
         LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
         LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : null;
 
-        Page<CampaignExpenseDto.CampaignExpenseResponse> expenses = campaignExpenseService.getCampaignExpenses(
+        Page<CampaignExpenseResponse> expenses = campaignExpenseService.getCampaignExpenses(
                 category, start, end, search, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.success(expenses));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<CampaignExpenseDto.CampaignExpenseResponse>> getCampaignExpenseById(
+    public ResponseEntity<ApiResponse<CampaignExpenseResponse>> getCampaignExpenseById(
             @PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(campaignExpenseService.getCampaignExpenseById(id)));
     }
 
     @GetMapping("/summary")
-    public ResponseEntity<ApiResponse<CampaignExpenseDto.CampaignCalculationSummaryDto>> getCalculationSummary(
+    public ResponseEntity<ApiResponse<CampaignCalculationSummaryDto>> getCalculationSummary(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         

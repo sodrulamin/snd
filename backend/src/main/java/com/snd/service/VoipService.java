@@ -1,6 +1,8 @@
 package com.snd.service;
 
-import com.snd.dto.VoipDto;
+import com.snd.dto.voip.VoipLogDto;
+import com.snd.dto.voip.VoipRedeemRequest;
+import com.snd.dto.voip.VoipRedeemResponse;
 import com.snd.model.RechargeCard;
 import com.snd.model.VoipRedemptionLog;
 import com.snd.repository.RechargeCardRepository;
@@ -26,7 +28,7 @@ public class VoipService {
     private final VoipRedemptionLogRepository redemptionLogRepository;
 
     @Transactional
-    public VoipDto.VoipRedeemResponse redeemCard(VoipDto.VoipRedeemRequest request, String ipAddress) {
+    public VoipRedeemResponse redeemCard(VoipRedeemRequest request, String ipAddress) {
         String lookup = request.getPin() != null ? request.getPin().trim().replace(" ", "").replace("-", "") : "";
         Optional<RechargeCard> cardOpt = Optional.empty();
 
@@ -44,7 +46,7 @@ public class VoipService {
         if (cardOpt.isEmpty()) {
             logFailure(request.getSerialNumber() != null ? request.getSerialNumber() : "UNKNOWN",
                     null, request.getSubscriberNumber(), "INVALID_PIN", ipAddress);
-            return VoipDto.VoipRedeemResponse.builder()
+            return VoipRedeemResponse.builder()
                     .success(false)
                     .message("Invalid PIN. Card does not exist.")
                     .build();
@@ -56,7 +58,7 @@ public class VoipService {
             if (!card.getSerialNumber().equalsIgnoreCase(request.getSerialNumber().trim())) {
                 logFailure(card.getSerialNumber(), card.getDistributor() != null ? card.getDistributor().getId() : null,
                         request.getSubscriberNumber(), "SERIAL_MISMATCH", ipAddress);
-                return VoipDto.VoipRedeemResponse.builder()
+                return VoipRedeemResponse.builder()
                         .success(false)
                         .message("PIN does not match the provided serial number.")
                         .build();
@@ -66,7 +68,7 @@ public class VoipService {
         if ("REDEEMED".equalsIgnoreCase(card.getStatus())) {
             logFailure(card.getSerialNumber(), card.getDistributor() != null ? card.getDistributor().getId() : null,
                     request.getSubscriberNumber(), "ALREADY_REDEEMED", ipAddress);
-            return VoipDto.VoipRedeemResponse.builder()
+            return VoipRedeemResponse.builder()
                     .success(false)
                     .message("This card has already been used and redeemed.")
                     .serialNumber(card.getSerialNumber())
@@ -76,7 +78,7 @@ public class VoipService {
         if ("VOID".equalsIgnoreCase(card.getStatus())) {
             logFailure(card.getSerialNumber(), card.getDistributor() != null ? card.getDistributor().getId() : null,
                     request.getSubscriberNumber(), "CARD_VOIDED", ipAddress);
-            return VoipDto.VoipRedeemResponse.builder()
+            return VoipRedeemResponse.builder()
                     .success(false)
                     .message("This recharge card has been voided/cancelled.")
                     .serialNumber(card.getSerialNumber())
@@ -86,7 +88,7 @@ public class VoipService {
         if (card.getExpiryDate().isBefore(LocalDate.now())) {
             logFailure(card.getSerialNumber(), card.getDistributor() != null ? card.getDistributor().getId() : null,
                     request.getSubscriberNumber(), "EXPIRED_CARD", ipAddress);
-            return VoipDto.VoipRedeemResponse.builder()
+            return VoipRedeemResponse.builder()
                     .success(false)
                     .message("Card has expired on " + card.getExpiryDate())
                     .serialNumber(card.getSerialNumber())
@@ -109,7 +111,7 @@ public class VoipService {
                 .build();
         redemptionLogRepository.save(log);
 
-        return VoipDto.VoipRedeemResponse.builder()
+        return VoipRedeemResponse.builder()
                 .success(true)
                 .message("Recharge successful! " + card.getDenomination().getCurrency() + " " +
                         card.getDenomination().getFaceValue() + " credited to VoIP account " + request.getSubscriberNumber())
@@ -122,8 +124,8 @@ public class VoipService {
                 .build();
     }
 
-    public Page<VoipDto.VoipLogDto> getRedemptionLogs(Pageable pageable) {
-        return redemptionLogRepository.findAllByOrderByRedeemedAtDesc(pageable).map(l -> VoipDto.VoipLogDto.builder()
+    public Page<VoipLogDto> getRedemptionLogs(Pageable pageable) {
+        return redemptionLogRepository.findAllByOrderByRedeemedAtDesc(pageable).map(l -> VoipLogDto.builder()
                 .id(l.getId())
                 .serialNumber(l.getSerialNumber())
                 .distributorId(l.getDistributorId())

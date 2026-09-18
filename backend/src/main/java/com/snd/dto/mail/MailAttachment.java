@@ -1,4 +1,4 @@
-package com.snd.dto;
+package com.snd.dto.mail;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

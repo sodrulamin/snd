@@ -1,7 +1,7 @@
 package com.snd.service;
 
-import com.snd.dto.MailAttachment;
-import com.snd.dto.SalesDto;
+import com.snd.dto.mail.MailAttachment;
+import com.snd.dto.sales.SalesOrderResponse;
 import com.snd.model.PartnerProfile;
 import com.snd.model.User;
 import jakarta.mail.MessagingException;
@@ -270,7 +270,7 @@ public class MailService {
      */
     @Async("mailExecutor")
     public CompletableFuture<Boolean> sendOrderConfirmationEmail(
-            SalesDto.SalesOrderResponse order,
+            SalesOrderResponse order,
             User distributor,
             String creatorEmail,
             byte[] invoicePdf) {

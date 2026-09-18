@@ -1,13 +1,12 @@
 package com.snd.service;
 
-import com.snd.dto.SalesDto;
+import com.snd.dto.sales.*;
 import com.snd.enums.BatchStatus;
 import com.snd.model.*;
 import com.snd.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,7 +41,7 @@ public class SalesService {
     private final PartnerProfileRepository partnerProfileRepository;
 
     @Transactional
-    public SalesDto.SalesOrderResponse createOrder(SalesDto.CreateOrderRequest request, String createdByUsername) {
+    public SalesOrderResponse createOrder(CreateOrderRequest request, String createdByUsername) {
         User distributor = userRepository.findById(request.getDistributorId())
                 .orElseThrow(() -> new RuntimeException("Distributor not found: " + request.getDistributorId()));
 
@@ -89,7 +88,7 @@ public class SalesService {
 
         order = orderRepository.save(order);
 
-        for (SalesDto.OrderItemRequest itemReq : request.getItems()) {
+        for (OrderItemRequest itemReq : request.getItems()) {
             CardDenomination denomination = denominationRepository.findById(itemReq.getDenominationId())
                     .orElseThrow(() -> new RuntimeException("Card product not found: " + itemReq.getDenominationId()));
 
@@ -323,11 +322,11 @@ public class SalesService {
             transactionRepository.save(txn);
         }
 
-        SalesDto.SalesOrderResponse response = mapToOrderResponse(order);
+        SalesOrderResponse response = mapToOrderResponse(order);
 
         // Generate PDF Invoice and dispatch confirmation email with creator in CC
         try {
-            SalesDto.InvoiceDto invoiceDto = getInvoice(order.getId());
+            InvoiceDto invoiceDto = getInvoice(order.getId());
             byte[] invoicePdf = invoicePdfService.generateInvoicePdf(invoiceDto);
 
             String creatorEmail = null;
@@ -347,7 +346,7 @@ public class SalesService {
         return response;
     }
 
-    public Page<SalesDto.SalesOrderResponse> getOrders(
+    public Page<SalesOrderResponse> getOrders(
             List<Long> distributorIds,
             String status,
             List<String> paymentMethods,
@@ -365,7 +364,7 @@ public class SalesService {
         return orderRepository.filterOrders(filterDistIds, statusParam, filterPayments, filterDenomIds, start, end, searchParam, pageable).map(this::mapToOrderResponse);
     }
 
-    public List<SalesDto.SalesOrderResponse> getAllOrders(
+    public List<SalesOrderResponse> getAllOrders(
             List<Long> distributorIds,
             String status,
             List<String> paymentMethods,
@@ -385,32 +384,32 @@ public class SalesService {
                 .collect(Collectors.toList());
     }
 
-    public Page<SalesDto.SalesOrderResponse> getOrders(Long distributorId, String status, String paymentMethod, List<Long> denominationIds, LocalDateTime start, LocalDateTime end, String search, Pageable pageable) {
+    public Page<SalesOrderResponse> getOrders(Long distributorId, String status, String paymentMethod, List<Long> denominationIds, LocalDateTime start, LocalDateTime end, String search, Pageable pageable) {
         List<Long> distIds = distributorId != null ? List.of(distributorId) : null;
         List<String> payMethods = (paymentMethod != null && !paymentMethod.isBlank()) ? List.of(paymentMethod) : null;
         return getOrders(distIds, status, payMethods, denominationIds, start, end, search, pageable);
     }
 
-    public Page<SalesDto.SalesOrderResponse> getOrders(Long distributorId, String status, String paymentMethod, LocalDateTime start, LocalDateTime end, String search, Pageable pageable) {
+    public Page<SalesOrderResponse> getOrders(Long distributorId, String status, String paymentMethod, LocalDateTime start, LocalDateTime end, String search, Pageable pageable) {
         return getOrders(distributorId, status, paymentMethod, null, start, end, search, pageable);
     }
 
-    public SalesDto.SalesOrderResponse getOrderById(Long id) {
+    public SalesOrderResponse getOrderById(Long id) {
         SalesOrder order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Order not found: " + id));
         return mapToOrderResponse(order);
     }
 
-    public SalesDto.SalesOrderResponse getOrderByOrderNumber(String orderNumber) {
+    public SalesOrderResponse getOrderByOrderNumber(String orderNumber) {
         SalesOrder order = orderRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new RuntimeException("Order not found: " + orderNumber));
         return mapToOrderResponse(order);
     }
 
-    public SalesDto.InvoiceDto getInvoice(Long orderId) {
+    public InvoiceDto getInvoice(Long orderId) {
         SalesOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
-        return SalesDto.InvoiceDto.builder()
+        return InvoiceDto.builder()
                 .companyName("IPTSP Global Connect Ltd.")
                 .companyAddress("Gulshan-2, Dhaka, Bangladesh")
                 .companyPhone("+880-2-9880000")
@@ -660,9 +659,9 @@ public class SalesService {
         }
     }
 
-    private SalesDto.SalesOrderResponse mapToOrderResponse(SalesOrder o) {
+    private SalesOrderResponse mapToOrderResponse(SalesOrder o) {
         List<SalesOrderItem> items = orderItemRepository.findByOrderId(o.getId());
-        List<SalesDto.OrderItemDto> itemDtos = items.stream().map(i -> SalesDto.OrderItemDto.builder()
+        List<OrderItemDto> itemDtos = items.stream().map(i -> OrderItemDto.builder()
                 .id(i.getId())
                 .denominationId(i.getDenomination().getId())
                 .denominationName(i.getDenomination().getName())
@@ -683,7 +682,7 @@ public class SalesService {
         String distEmail = profile != null ? profile.getEmail() : null;
         String distPhone = profile != null ? profile.getPhone() : null;
 
-        return SalesDto.SalesOrderResponse.builder()
+        return SalesOrderResponse.builder()
                 .id(o.getId())
                 .orderNumber(o.getOrderNumber())
                 .distributorId(o.getDistributor() != null ? o.getDistributor().getId() : null)

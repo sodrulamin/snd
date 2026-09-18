@@ -1,7 +1,7 @@
 package com.snd.service;
 
-import com.snd.dto.ReportDto;
-import com.snd.dto.SalesDto;
+import com.snd.dto.report.*;
+import com.snd.dto.sales.SalesOrderResponse;
 import com.snd.enums.BatchStatus;
 import com.snd.model.CardDenomination;
 import com.snd.model.PartnerProfile;
@@ -31,7 +31,7 @@ public class ReportService {
     private final UserRepository userRepository;
     private final SalesService salesService;
 
-    public ReportDto.DashboardSummaryDto getDashboardSummary() {
+    public DashboardSummaryDto getDashboardSummary() {
         LocalDate now = LocalDate.now();
         LocalDateTime currentMonthStart = now.withDayOfMonth(1).atStartOfDay();
         LocalDateTime currentMonthEnd = now.withDayOfMonth(now.lengthOfMonth()).atTime(23, 59, 59);
@@ -67,16 +67,16 @@ public class ReportService {
                 .filter(d -> rechargeCardRepository.countByDenominationIdAndStatus(d.getId(), "IN_STOCK") < 20)
                 .count();
 
-        List<ReportDto.MonthlySalesTrend> trends = buildMonthlyTrends();
-        List<ReportDto.DenominationSalesShare> denominationShares = buildDenominationShares(totalFaceValue);
-        List<ReportDto.DistributorRankDto> topDistributors = buildTopDistributors();
+        List<MonthlySalesTrend> trends = buildMonthlyTrends();
+        List<DenominationSalesShare> denominationShares = buildDenominationShares(totalFaceValue);
+        List<DistributorRankDto> topDistributors = buildTopDistributors();
 
-        List<SalesDto.SalesOrderResponse> recentOrders = orderRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 5))
+        List<SalesOrderResponse> recentOrders = orderRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 5))
                 .getContent().stream()
                 .map(o -> salesService.getOrderById(o.getId()))
                 .collect(Collectors.toList());
 
-        return ReportDto.DashboardSummaryDto.builder()
+        return DashboardSummaryDto.builder()
                 .totalRevenue(totalRevenue)
                 .lastMonthRevenue(lastMonthRevenue)
                 .revenueGrowthPercentage(growthPercentage)
@@ -94,7 +94,7 @@ public class ReportService {
                 .build();
     }
 
-    public ReportDto.FinancialReportDto getFinancialReport(LocalDate startDate, LocalDate endDate) {
+    public FinancialReportDto getFinancialReport(LocalDate startDate, LocalDate endDate) {
         LocalDateTime start = startDate != null ? startDate.atStartOfDay() : LocalDateTime.now().minusDays(30);
         LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : LocalDateTime.now();
 
@@ -105,13 +105,13 @@ public class ReportService {
         BigDecimal netRevenue = orders.stream().map(SalesOrder::getFinalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         long totalCards = orders.stream().mapToLong(SalesOrder::getTotalCardsCount).sum();
 
-        List<SalesDto.SalesOrderResponse> orderResponses = orders.stream()
+        List<SalesOrderResponse> orderResponses = orders.stream()
                 .map(o -> salesService.getOrderById(o.getId()))
                 .collect(Collectors.toList());
 
-        List<ReportDto.DistributorRankDto> distributorBreakdown = buildTopDistributors();
+        List<DistributorRankDto> distributorBreakdown = buildTopDistributors();
 
-        return ReportDto.FinancialReportDto.builder()
+        return FinancialReportDto.builder()
                 .startDate(start.toLocalDate())
                 .endDate(end.toLocalDate())
                 .grossSales(grossSales)
@@ -124,8 +124,8 @@ public class ReportService {
                 .build();
     }
 
-    private List<ReportDto.MonthlySalesTrend> buildMonthlyTrends() {
-        List<ReportDto.MonthlySalesTrend> list = new ArrayList<>();
+    private List<MonthlySalesTrend> buildMonthlyTrends() {
+        List<MonthlySalesTrend> list = new ArrayList<>();
         LocalDate now = LocalDate.now();
 
         for (int i = 5; i >= 0; i--) {
@@ -141,7 +141,7 @@ public class ReportService {
 
             String period = monthDate.format(DateTimeFormatter.ofPattern("MMM yyyy"));
 
-            list.add(ReportDto.MonthlySalesTrend.builder()
+            list.add(MonthlySalesTrend.builder()
                     .period(period)
                     .revenue(revenue)
                     .faceValue(faceValue)
@@ -151,9 +151,9 @@ public class ReportService {
         return list;
     }
 
-    private List<ReportDto.DenominationSalesShare> buildDenominationShares(BigDecimal totalFaceValue) {
+    private List<DenominationSalesShare> buildDenominationShares(BigDecimal totalFaceValue) {
         List<CardDenomination> denominations = denominationRepository.findAll();
-        List<ReportDto.DenominationSalesShare> list = new ArrayList<>();
+        List<DenominationSalesShare> list = new ArrayList<>();
 
         for (CardDenomination d : denominations) {
             long soldCount = rechargeCardRepository.countByDenominationIdAndStatus(d.getId(), "SOLD") +
@@ -163,7 +163,7 @@ public class ReportService {
                     ? denomRevenue.divide(totalFaceValue, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)).doubleValue()
                     : 0.0;
 
-            list.add(ReportDto.DenominationSalesShare.builder()
+            list.add(DenominationSalesShare.builder()
                     .denominationId(d.getId())
                     .denominationName(d.getName())
                     .faceValue(d.getFaceValue())
@@ -175,9 +175,9 @@ public class ReportService {
         return list;
     }
 
-    private List<ReportDto.DistributorRankDto> buildTopDistributors() {
+    private List<DistributorRankDto> buildTopDistributors() {
         List<User> distributors = userRepository.findByRole("DISTRIBUTOR");
-        List<ReportDto.DistributorRankDto> list = new ArrayList<>();
+        List<DistributorRankDto> list = new ArrayList<>();
 
         for (User dist : distributors) {
             List<SalesOrder> orders = orderRepository.findByDistributorIdOrderByCreatedAtDesc(dist.getId());
@@ -188,7 +188,7 @@ public class ReportService {
             String distName = profile != null ? profile.getFullName() : dist.getUsername();
             BigDecimal currentBalance = profile != null && profile.getBalance() != null ? profile.getBalance() : BigDecimal.ZERO;
 
-            list.add(ReportDto.DistributorRankDto.builder()
+            list.add(DistributorRankDto.builder()
                     .distributorId(dist.getId())
                     .distributorName(distName)
                     .ordersCount((long) orders.size())
@@ -198,7 +198,7 @@ public class ReportService {
                     .build());
         }
 
-        list.sort(Comparator.comparing(ReportDto.DistributorRankDto::getTotalSpend).reversed());
+        list.sort(Comparator.comparing(DistributorRankDto::getTotalSpend).reversed());
         return list;
     }
 }

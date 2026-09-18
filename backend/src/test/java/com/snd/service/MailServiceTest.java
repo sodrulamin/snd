@@ -1,7 +1,8 @@
 package com.snd.service;
 
-import com.snd.dto.MailAttachment;
-import com.snd.dto.SalesDto;
+import com.snd.dto.mail.MailAttachment;
+import com.snd.dto.sales.OrderItemDto;
+import com.snd.dto.sales.SalesOrderResponse;
 import com.snd.model.PartnerProfile;
 import com.snd.model.User;
 import jakarta.mail.Session;
@@ -189,7 +190,7 @@ class MailServiceTest {
         when(templateEngine.process(eq("mail/order-placed"), any(Context.class)))
                 .thenReturn("<html><body>Order Confirmed</body></html>");
 
-        SalesDto.OrderItemDto item = SalesDto.OrderItemDto.builder()
+        OrderItemDto item = OrderItemDto.builder()
                 .denominationName("Tk 100")
                 .batchNumber("LOT-100-01")
                 .serialRange("SN-0001 ~ SN-0500")
@@ -199,7 +200,7 @@ class MailServiceTest {
                 .subtotalFinal(BigDecimal.valueOf(47500))
                 .build();
 
-        SalesDto.SalesOrderResponse order = SalesDto.SalesOrderResponse.builder()
+        SalesOrderResponse order = SalesOrderResponse.builder()
                 .orderNumber("ORD-20260916-001")
                 .distributorName("Gulshan Telecom")
                 .distributorEmail("gulshan@example.com")

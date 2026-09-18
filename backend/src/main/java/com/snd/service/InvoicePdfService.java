@@ -2,7 +2,9 @@ package com.snd.service;
 
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.*;
-import com.snd.dto.SalesDto;
+import com.snd.dto.sales.InvoiceDto;
+import com.snd.dto.sales.OrderItemDto;
+import com.snd.dto.sales.SalesOrderResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -48,12 +50,12 @@ public class InvoicePdfService {
     /**
      * Generates a PDF invoice byte array from a SalesDto.InvoiceDto object.
      */
-    public byte[] generateInvoicePdf(SalesDto.InvoiceDto invoice) {
+    public byte[] generateInvoicePdf(InvoiceDto invoice) {
         if (invoice == null || invoice.getOrder() == null) {
             throw new IllegalArgumentException("Invoice and Order data cannot be null");
         }
 
-        SalesDto.SalesOrderResponse order = invoice.getOrder();
+        SalesOrderResponse order = invoice.getOrder();
 
         Document document = new Document(PageSize.A4, 36, 36, 36, 36);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -148,10 +150,10 @@ public class InvoicePdfService {
             addHeaderCell(itemsTable, "Net Total");
 
             // Items Rows
-            List<SalesDto.OrderItemDto> items = order.getItems();
+            List<OrderItemDto> items = order.getItems();
             if (items != null && !items.isEmpty()) {
                 int sl = 1;
-                for (SalesDto.OrderItemDto item : items) {
+                for (OrderItemDto item : items) {
                     Color rowBg = (sl % 2 == 0) ? COLOR_BG_LIGHT : Color.WHITE;
 
                     addTableCell(itemsTable, String.valueOf(sl), Element.ALIGN_CENTER, rowBg, FONT_TABLE_CELL);

@@ -1,7 +1,9 @@
 package com.snd.controller;
 
 import com.snd.dto.ApiResponse;
-import com.snd.dto.SalesDto;
+import com.snd.dto.sales.CreateOrderRequest;
+import com.snd.dto.sales.InvoiceDto;
+import com.snd.dto.sales.SalesOrderResponse;
 import com.snd.service.InvoicePdfService;
 import com.snd.service.SalesService;
 import jakarta.validation.Valid;
@@ -16,6 +18,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/sales")
@@ -27,28 +31,28 @@ public class SalesController {
 
     @PostMapping("/orders")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<SalesDto.SalesOrderResponse>> createOrder(
-            @Valid @RequestBody SalesDto.CreateOrderRequest request,
+    public ResponseEntity<ApiResponse<SalesOrderResponse>> createOrder(
+            @Valid @RequestBody CreateOrderRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-        SalesDto.SalesOrderResponse order = salesService.createOrder(request, userDetails.getUsername());
+        SalesOrderResponse order = salesService.createOrder(request, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(order, "Order created and cards allocated successfully"));
     }
 
     @GetMapping("/orders")
-    public ResponseEntity<ApiResponse<Page<SalesDto.SalesOrderResponse>>> getOrders(
+    public ResponseEntity<ApiResponse<Page<SalesOrderResponse>>> getOrders(
             @RequestParam(required = false) Long distributorId,
-            @RequestParam(required = false) java.util.List<Long> distributorIds,
+            @RequestParam(required = false) List<Long> distributorIds,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String paymentMethod,
-            @RequestParam(required = false) java.util.List<String> paymentMethods,
+            @RequestParam(required = false) List<String> paymentMethods,
             @RequestParam(required = false) Long denominationId,
-            @RequestParam(required = false) java.util.List<Long> denominationIds,
+            @RequestParam(required = false) List<Long> denominationIds,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "15") int size) {
-        java.util.List<Long> mergedDistIds = new java.util.ArrayList<>();
+        List<Long> mergedDistIds = new ArrayList<>();
         if (distributorIds != null) {
             mergedDistIds.addAll(distributorIds);
         }
@@ -56,7 +60,7 @@ public class SalesController {
             mergedDistIds.add(distributorId);
         }
 
-        java.util.List<String> mergedPayMethods = new java.util.ArrayList<>();
+        List<String> mergedPayMethods = new ArrayList<>();
         if (paymentMethods != null) {
             mergedPayMethods.addAll(paymentMethods);
         }
@@ -64,7 +68,7 @@ public class SalesController {
             mergedPayMethods.add(paymentMethod);
         }
 
-        java.util.List<Long> mergedDenomIds = new java.util.ArrayList<>();
+        List<Long> mergedDenomIds = new ArrayList<>();
         if (denominationIds != null) {
             mergedDenomIds.addAll(denominationIds);
         }
@@ -72,24 +76,24 @@ public class SalesController {
             mergedDenomIds.add(denominationId);
         }
 
-        Page<SalesDto.SalesOrderResponse> orders = salesService.getOrders(
+        Page<SalesOrderResponse> orders = salesService.getOrders(
                 mergedDistIds, status, mergedPayMethods, mergedDenomIds, startDate, endDate, search, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.success(orders));
     }
 
     @GetMapping("/orders/all")
-    public ResponseEntity<ApiResponse<java.util.List<SalesDto.SalesOrderResponse>>> getAllOrders(
+    public ResponseEntity<ApiResponse<List<SalesOrderResponse>>> getAllOrders(
             @RequestParam(required = false) Long distributorId,
-            @RequestParam(required = false) java.util.List<Long> distributorIds,
+            @RequestParam(required = false) List<Long> distributorIds,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String paymentMethod,
-            @RequestParam(required = false) java.util.List<String> paymentMethods,
+            @RequestParam(required = false) List<String> paymentMethods,
             @RequestParam(required = false) Long denominationId,
-            @RequestParam(required = false) java.util.List<Long> denominationIds,
+            @RequestParam(required = false) List<Long> denominationIds,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
-        java.util.List<Long> mergedDistIds = new java.util.ArrayList<>();
+        List<Long> mergedDistIds = new ArrayList<>();
         if (distributorIds != null) {
             mergedDistIds.addAll(distributorIds);
         }
@@ -97,7 +101,7 @@ public class SalesController {
             mergedDistIds.add(distributorId);
         }
 
-        java.util.List<String> mergedPayMethods = new java.util.ArrayList<>();
+        List<String> mergedPayMethods = new ArrayList<>();
         if (paymentMethods != null) {
             mergedPayMethods.addAll(paymentMethods);
         }
@@ -105,7 +109,7 @@ public class SalesController {
             mergedPayMethods.add(paymentMethod);
         }
 
-        java.util.List<Long> mergedDenomIds = new java.util.ArrayList<>();
+        List<Long> mergedDenomIds = new ArrayList<>();
         if (denominationIds != null) {
             mergedDenomIds.addAll(denominationIds);
         }
@@ -113,24 +117,24 @@ public class SalesController {
             mergedDenomIds.add(denominationId);
         }
 
-        java.util.List<SalesDto.SalesOrderResponse> orders = salesService.getAllOrders(
+        List<SalesOrderResponse> orders = salesService.getAllOrders(
                 mergedDistIds, status, mergedPayMethods, mergedDenomIds, startDate, endDate, search);
         return ResponseEntity.ok(ApiResponse.success(orders));
     }
 
     @GetMapping("/orders/{id}")
-    public ResponseEntity<ApiResponse<SalesDto.SalesOrderResponse>> getOrderById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<SalesOrderResponse>> getOrderById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(salesService.getOrderById(id)));
     }
 
     @GetMapping("/orders/{id}/invoice")
-    public ResponseEntity<ApiResponse<SalesDto.InvoiceDto>> getInvoice(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<InvoiceDto>> getInvoice(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(salesService.getInvoice(id)));
     }
 
     @GetMapping(value = "/orders/{id}/invoice/pdf", produces = "application/pdf")
     public ResponseEntity<byte[]> getInvoicePdf(@PathVariable Long id) {
-        SalesDto.InvoiceDto invoice = salesService.getInvoice(id);
+        InvoiceDto invoice = salesService.getInvoice(id);
         byte[] pdfBytes = invoicePdfService.generateInvoicePdf(invoice);
         String filename = "Invoice-" + invoice.getOrder().getOrderNumber() + ".pdf";
 

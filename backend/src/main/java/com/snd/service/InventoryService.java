@@ -1,6 +1,6 @@
 package com.snd.service;
 
-import com.snd.dto.InventoryDto;
+import com.snd.dto.inventory.*;
 import com.snd.enums.BatchStatus;
 import com.snd.model.CardBatch;
 import com.snd.model.CardDenomination;
@@ -41,16 +41,16 @@ public class InventoryService {
     private final CardBatchRepository batchRepository;
     private final RechargeCardRepository rechargeCardRepository;
 
-    public List<InventoryDto.DenominationResponse> getAllDenominations() {
+    public List<DenominationResponse> getAllDenominations() {
         return denominationRepository.findAll().stream().map(this::mapToDenominationResponse).collect(Collectors.toList());
     }
 
-    public List<InventoryDto.DenominationResponse> getActiveDenominations() {
+    public List<DenominationResponse> getActiveDenominations() {
         return denominationRepository.findByIsActiveTrue().stream().map(this::mapToDenominationResponse).collect(Collectors.toList());
     }
 
     @Transactional
-    public InventoryDto.DenominationResponse createDenomination(InventoryDto.DenominationRequest request) {
+    public DenominationResponse createDenomination(DenominationRequest request) {
         String code = request.getCode().trim().toUpperCase();
         if (denominationRepository.existsByCode(code)) {
             throw new IllegalArgumentException("Card with code '" + code + "' already exists.");
@@ -87,7 +87,7 @@ public class InventoryService {
     }
 
     @Transactional
-    public InventoryDto.DenominationResponse updateDenomination(Long id, InventoryDto.DenominationRequest request) {
+    public DenominationResponse updateDenomination(Long id, DenominationRequest request) {
         CardDenomination denomination = denominationRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Card denomination not found: " + id));
 
@@ -139,11 +139,11 @@ public class InventoryService {
         denominationRepository.delete(denomination);
     }
 
-    public List<InventoryDto.BatchSummaryDto> getAllBatches() {
+    public List<BatchSummaryDto> getAllBatches() {
         return batchRepository.findByStatusOrderByGeneratedAtDesc(BatchStatus.AVAILABLE).stream().map(this::mapToBatchSummary).collect(Collectors.toList());
     }
 
-    public Page<InventoryDto.BatchSummaryDto> getBatches(
+    public Page<BatchSummaryDto> getBatches(
             Pageable pageable, String statusStr, List<Long> denominationIds, List<String> batchNumbers, String search) {
         BatchStatus status = null;
         if (statusStr != null && !statusStr.isBlank() && !"ALL".equalsIgnoreCase(statusStr)) {
@@ -159,7 +159,7 @@ public class InventoryService {
             .map(this::mapToBatchSummary);
     }
 
-    public List<InventoryDto.BatchSummaryDto> getBatchesFilteredList(
+    public List<BatchSummaryDto> getBatchesFilteredList(
             String statusStr, List<Long> denominationIds, List<String> batchNumbers, String search) {
         BatchStatus status = null;
         if (statusStr != null && !statusStr.isBlank() && !"ALL".equalsIgnoreCase(statusStr)) {
@@ -188,7 +188,7 @@ public class InventoryService {
         return batchRepository.findDistinctBatchNumbersByStatusAndDenominations(status, cleanDenomIds);
     }
 
-    public List<InventoryDto.DenominationResponse> getDistinctDenominations(String statusStr) {
+    public List<DenominationResponse> getDistinctDenominations(String statusStr) {
         BatchStatus status = null;
         if (statusStr != null && !statusStr.isBlank() && !"ALL".equalsIgnoreCase(statusStr)) {
             try {
@@ -201,7 +201,7 @@ public class InventoryService {
             .collect(Collectors.toList());
     }
 
-    public InventoryDto.InventorySummaryDto getInventorySummary() {
+    public InventorySummaryDto getInventorySummary() {
         List<CardBatch> availableBatches = batchRepository.findByStatus(BatchStatus.AVAILABLE);
         long totalLots = availableBatches.size();
         long inStockCards = 0;
@@ -209,7 +209,7 @@ public class InventoryService {
         BigDecimal totalRetailValue = BigDecimal.ZERO;
 
         for (CardBatch b : availableBatches) {
-            InventoryDto.BatchSummaryDto dto = mapToBatchSummary(b);
+            BatchSummaryDto dto = mapToBatchSummary(b);
             long qty = dto.getInStockCount() != null ? dto.getInStockCount() : (dto.getQuantity() != null ? dto.getQuantity() : 0);
             inStockCards += qty;
 
@@ -220,7 +220,7 @@ public class InventoryService {
             totalRetailValue = totalRetailValue.add(unitRetail.multiply(BigDecimal.valueOf(qty)));
         }
 
-        return InventoryDto.InventorySummaryDto.builder()
+        return InventorySummaryDto.builder()
             .totalLots(totalLots)
             .inStockCards(inStockCards)
             .totalWholesaleValue(totalWholesaleValue)
@@ -228,7 +228,7 @@ public class InventoryService {
             .build();
     }
 
-    public List<InventoryDto.BatchSummaryDto> getBatchesByStatus(String status) {
+    public List<BatchSummaryDto> getBatchesByStatus(String status) {
         if (status == null || "ALL".equalsIgnoreCase(status)) {
             return batchRepository.findAllByOrderByGeneratedAtDesc().stream().map(this::mapToBatchSummary).collect(Collectors.toList());
         }
@@ -240,13 +240,13 @@ public class InventoryService {
         }
     }
 
-    public InventoryDto.BatchSummaryDto getBatchById(Long id) {
+    public BatchSummaryDto getBatchById(Long id) {
         CardBatch batch = batchRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Batch not found: " + id));
         return mapToBatchSummary(batch);
     }
 
-    public List<InventoryDto.CardDetailDto> getBatchCards(Long batchId) {
+    public List<CardDetailDto> getBatchCards(Long batchId) {
         CardBatch batch = batchRepository.findById(batchId)
             .orElseThrow(() -> new RuntimeException("Batch not found: " + batchId));
 
@@ -258,7 +258,7 @@ public class InventoryService {
             }
         }
 
-        List<InventoryDto.CardDetailDto> result = new ArrayList<>();
+        List<CardDetailDto> result = new ArrayList<>();
         String startSerial = batch.getStartSerialNumber();
         String endSerial = batch.getEndSerialNumber();
 
@@ -282,7 +282,7 @@ public class InventoryService {
                     ? card.getStatus() 
                     : (batch.getStatus() != null && batch.getStatus() != BatchStatus.AVAILABLE ? batch.getStatus().name() : "IN_STOCK");
 
-                result.add(InventoryDto.CardDetailDto.builder()
+                result.add(CardDetailDto.builder()
                     .id(card != null ? card.getId() : null)
                     .batchId(batch.getId())
                     .batchNumber(batch.getBatchNumber())
@@ -309,7 +309,7 @@ public class InventoryService {
         } else {
             // Fallback: If serial pattern isn't parseable, populate from existing rechargeCard records
             for (RechargeCard card : existingCards) {
-                result.add(InventoryDto.CardDetailDto.builder()
+                result.add(CardDetailDto.builder()
                     .id(card.getId())
                     .batchId(batch.getId())
                     .batchNumber(batch.getBatchNumber())
@@ -338,14 +338,14 @@ public class InventoryService {
         return result;
     }
 
-    public List<InventoryDto.CardDetailDto> getLotCards(String batchNumber) {
+    public List<CardDetailDto> getLotCards(String batchNumber) {
         List<CardBatch> batches = batchRepository.findByBatchNumberOrderByGeneratedAtDesc(batchNumber);
         if (batches.isEmpty()) {
             throw new RuntimeException("Inventory lot not found: " + batchNumber);
         }
 
         // Aggregate cards across all batch slices belonging to this lot number
-        List<InventoryDto.CardDetailDto> allCards = new ArrayList<>();
+        List<CardDetailDto> allCards = new ArrayList<>();
         for (CardBatch b : batches) {
             allCards.addAll(getBatchCards(b.getId()));
         }
@@ -360,15 +360,15 @@ public class InventoryService {
         return allCards;
     }
 
-    public List<InventoryDto.BatchSerialRangeDto> getLotSerialRanges(String batchNumber) {
+    public List<BatchSerialRangeDto> getLotSerialRanges(String batchNumber) {
         List<CardBatch> batches = batchRepository.findByBatchNumberOrderByGeneratedAtDesc(batchNumber);
         if (batches.isEmpty()) {
             throw new RuntimeException("Inventory lot not found: " + batchNumber);
         }
 
         CardBatch firstBatch = batches.get(0);
-        List<InventoryDto.CardDetailDto> cards = getLotCards(batchNumber);
-        List<InventoryDto.BatchSerialRangeDto> ranges = new ArrayList<>();
+        List<CardDetailDto> cards = getLotCards(batchNumber);
+        List<BatchSerialRangeDto> ranges = new ArrayList<>();
         if (cards.isEmpty()) {
             return ranges;
         }
@@ -380,12 +380,12 @@ public class InventoryService {
             ? firstBatch.getDenomination().getRetailPrice() 
             : firstBatch.getDenomination().getFaceValue();
 
-        InventoryDto.CardDetailDto rangeStart = cards.get(0);
-        InventoryDto.CardDetailDto prevCard = cards.get(0);
+        CardDetailDto rangeStart = cards.get(0);
+        CardDetailDto prevCard = cards.get(0);
         int currentRangeQty = 1;
 
         for (int i = 1; i < cards.size(); i++) {
-            InventoryDto.CardDetailDto current = cards.get(i);
+            CardDetailDto current = cards.get(i);
             boolean sameStatus = Objects.equals(current.getStatus(), rangeStart.getStatus());
             boolean sameDistributor = Objects.equals(current.getDistributorId(), rangeStart.getDistributorId());
             boolean sameOrder = Objects.equals(current.getOrderId(), rangeStart.getOrderId());
@@ -395,7 +395,7 @@ public class InventoryService {
                 prevCard = current;
             } else {
                 // Finish current range block
-                ranges.add(InventoryDto.BatchSerialRangeDto.builder()
+                ranges.add(BatchSerialRangeDto.builder()
                     .batchId(firstBatch.getId())
                     .batchNumber(batchNumber)
                     .denominationId(firstBatch.getDenomination().getId())
@@ -422,7 +422,7 @@ public class InventoryService {
         }
 
         // Add final range block
-        ranges.add(InventoryDto.BatchSerialRangeDto.builder()
+        ranges.add(BatchSerialRangeDto.builder()
             .batchId(firstBatch.getId())
             .batchNumber(batchNumber)
             .denominationId(firstBatch.getDenomination().getId())
@@ -445,12 +445,12 @@ public class InventoryService {
         return ranges;
     }
 
-    public List<InventoryDto.BatchSerialRangeDto> getBatchSerialRanges(Long batchId) {
+    public List<BatchSerialRangeDto> getBatchSerialRanges(Long batchId) {
         CardBatch batch = batchRepository.findById(batchId)
             .orElseThrow(() -> new RuntimeException("Batch not found: " + batchId));
 
-        List<InventoryDto.CardDetailDto> cards = getBatchCards(batchId);
-        List<InventoryDto.BatchSerialRangeDto> ranges = new ArrayList<>();
+        List<CardDetailDto> cards = getBatchCards(batchId);
+        List<BatchSerialRangeDto> ranges = new ArrayList<>();
         if (cards.isEmpty()) {
             return ranges;
         }
@@ -462,12 +462,12 @@ public class InventoryService {
             ? batch.getDenomination().getRetailPrice() 
             : batch.getDenomination().getFaceValue();
 
-        InventoryDto.CardDetailDto rangeStart = cards.get(0);
-        InventoryDto.CardDetailDto prevCard = cards.get(0);
+        CardDetailDto rangeStart = cards.get(0);
+        CardDetailDto prevCard = cards.get(0);
         int currentRangeQty = 1;
 
         for (int i = 1; i < cards.size(); i++) {
-            InventoryDto.CardDetailDto current = cards.get(i);
+            CardDetailDto current = cards.get(i);
             boolean sameStatus = Objects.equals(current.getStatus(), rangeStart.getStatus());
             boolean sameDistributor = Objects.equals(current.getDistributorId(), rangeStart.getDistributorId());
             boolean sameOrder = Objects.equals(current.getOrderId(), rangeStart.getOrderId());
@@ -477,7 +477,7 @@ public class InventoryService {
                 prevCard = current;
             } else {
                 // Finish current range block
-                ranges.add(InventoryDto.BatchSerialRangeDto.builder()
+                ranges.add(BatchSerialRangeDto.builder()
                     .batchId(batch.getId())
                     .batchNumber(batch.getBatchNumber())
                     .denominationId(batch.getDenomination().getId())
@@ -504,7 +504,7 @@ public class InventoryService {
         }
 
         // Add final range block
-        ranges.add(InventoryDto.BatchSerialRangeDto.builder()
+        ranges.add(BatchSerialRangeDto.builder()
             .batchId(batch.getId())
             .batchNumber(batch.getBatchNumber())
             .denominationId(batch.getDenomination().getId())
@@ -528,7 +528,7 @@ public class InventoryService {
     }
 
     @Transactional
-    public InventoryDto.BatchSummaryDto generateBatch(InventoryDto.BatchGenerateRequest request, String username) {
+    public BatchSummaryDto generateBatch(BatchGenerateRequest request, String username) {
         CardDenomination denomination = denominationRepository.findById(request.getDenominationId())
             .orElseThrow(() -> new RuntimeException("Card product not found: " + request.getDenominationId()));
 
@@ -592,7 +592,7 @@ public class InventoryService {
         return mapToBatchSummary(batch);
     }
 
-    private InventoryDto.DenominationResponse mapToDenominationResponse(CardDenomination d) {
+    private DenominationResponse mapToDenominationResponse(CardDenomination d) {
         List<CardBatch> batches = batchRepository.findByDenominationIdAndStatus(d.getId(), BatchStatus.AVAILABLE);
         long available = 0;
         for (CardBatch b : batches) {
@@ -630,7 +630,7 @@ public class InventoryService {
         BigDecimal retail = d.getRetailPrice() != null ? d.getRetailPrice() : d.getFaceValue();
         BigDecimal wholesale = d.getWholesalePrice() != null ? d.getWholesalePrice() : retail;
 
-        return InventoryDto.DenominationResponse.builder()
+        return DenominationResponse.builder()
             .id(d.getId())
             .code(d.getCode())
             .name(d.getName())
@@ -649,7 +649,7 @@ public class InventoryService {
             .build();
     }
 
-    private InventoryDto.BatchSummaryDto mapToBatchSummary(CardBatch b) {
+    private BatchSummaryDto mapToBatchSummary(CardBatch b) {
         long count = 0;
         if (StringUtils.hasText(b.getStartSerialNumber()) && StringUtils.hasText(b.getEndSerialNumber())) {
             try {
@@ -679,7 +679,7 @@ public class InventoryService {
         BigDecimal retail = b.getDenomination().getRetailPrice() != null ? b.getDenomination().getRetailPrice() : b.getDenomination().getFaceValue();
         BigDecimal wholesale = b.getDenomination().getWholesalePrice() != null ? b.getDenomination().getWholesalePrice() : retail;
 
-        return InventoryDto.BatchSummaryDto.builder()
+        return BatchSummaryDto.builder()
             .id(b.getId())
             .batchNumber(b.getBatchNumber())
             .denominationId(b.getDenomination().getId())
@@ -702,7 +702,7 @@ public class InventoryService {
             .build();
     }
 
-    public InventoryDto.AvailableSerialRangeResponse getAvailableSerialRange(Long denominationId) {
+    public AvailableSerialRangeResponse getAvailableSerialRange(Long denominationId) {
         CardDenomination denomination = denominationRepository.findById(denominationId)
             .orElseThrow(() -> new RuntimeException("Card product not found: " + denominationId));
 
@@ -725,7 +725,7 @@ public class InventoryService {
 
             RechargeCard lastCard = batchRun.get(batchRun.size() - 1);
 
-            return InventoryDto.AvailableSerialRangeResponse.builder()
+            return AvailableSerialRangeResponse.builder()
                 .denominationId(denominationId)
                 .denominationName(denomination.getName())
                 .available(true)
@@ -754,7 +754,7 @@ public class InventoryService {
                     }
                 } catch (Exception ignored) {}
             }
-            return InventoryDto.AvailableSerialRangeResponse.builder()
+            return AvailableSerialRangeResponse.builder()
                 .denominationId(denominationId)
                 .denominationName(denomination.getName())
                 .available(true)
@@ -765,7 +765,7 @@ public class InventoryService {
                 .build();
         }
 
-        return InventoryDto.AvailableSerialRangeResponse.builder()
+        return AvailableSerialRangeResponse.builder()
             .denominationId(denominationId)
             .denominationName(denomination.getName())
             .available(false)

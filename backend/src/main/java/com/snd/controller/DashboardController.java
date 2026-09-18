@@ -1,7 +1,7 @@
 package com.snd.controller;
 
 import com.snd.dto.ApiResponse;
-import com.snd.dto.ReportDto;
+import com.snd.dto.report.DashboardSummaryDto;
 import com.snd.service.ReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +17,7 @@ public class DashboardController {
     private final ReportService reportService;
 
     @GetMapping("/summary")
-    public ResponseEntity<ApiResponse<ReportDto.DashboardSummaryDto>> getDashboardSummary() {
+    public ResponseEntity<ApiResponse<DashboardSummaryDto>> getDashboardSummary() {
         return ResponseEntity.ok(ApiResponse.success(reportService.getDashboardSummary()));
     }
 }

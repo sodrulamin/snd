@@ -1,6 +1,6 @@
 package com.snd.service;
 
-import com.snd.dto.AuthDto;
+import com.snd.dto.auth.*;
 import com.snd.model.PartnerProfile;
 import com.snd.model.User;
 import com.snd.repository.UserRepository;
@@ -25,7 +25,7 @@ public class AuthService {
     private final JwtTokenProvider tokenProvider;
     private final PasswordEncoder passwordEncoder;
 
-    public AuthDto.LoginResponse login(AuthDto.LoginRequest request) {
+    public LoginResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
@@ -37,7 +37,7 @@ public class AuthService {
         String jwt = tokenProvider.generateToken(authentication);
 
         PartnerProfile profile = user.getPartnerProfile();
-        return AuthDto.LoginResponse.builder()
+        return LoginResponse.builder()
                 .token(jwt)
                 .tokenType("Bearer")
                 .id(user.getId())
@@ -50,14 +50,14 @@ public class AuthService {
                 .build();
     }
 
-    public AuthDto.UserProfileDto getCurrentUserProfile(String username) {
+    public UserProfileDto getCurrentUserProfile(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found: " + username));
         return mapToProfileDto(user);
     }
 
     @Transactional
-    public void changePassword(String username, AuthDto.ChangePasswordRequest request) {
+    public void changePassword(String username, ChangePasswordRequest request) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found: " + username));
 
@@ -69,9 +69,9 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    private AuthDto.UserProfileDto mapToProfileDto(User user) {
+    private UserProfileDto mapToProfileDto(User user) {
         PartnerProfile profile = user.getPartnerProfile();
-        return AuthDto.UserProfileDto.builder()
+        return UserProfileDto.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .fullName(profile != null ? profile.getFullName() : user.getUsername())

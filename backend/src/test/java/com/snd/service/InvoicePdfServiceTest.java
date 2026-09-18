@@ -1,6 +1,8 @@
 package com.snd.service;
 
-import com.snd.dto.SalesDto;
+import com.snd.dto.sales.InvoiceDto;
+import com.snd.dto.sales.OrderItemDto;
+import com.snd.dto.sales.SalesOrderResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,7 +28,7 @@ class InvoicePdfServiceTest {
     @Test
     @DisplayName("generateInvoicePdf should produce valid PDF byte array with %PDF header")
     void generateInvoicePdf_success() {
-        SalesDto.OrderItemDto item1 = SalesDto.OrderItemDto.builder()
+        OrderItemDto item1 = OrderItemDto.builder()
                 .denominationName("Tk 50")
                 .batchNumber("LOT-50-20260901")
                 .serialRange("SN-050-0001 ~ SN-050-0200")
@@ -36,7 +38,7 @@ class InvoicePdfServiceTest {
                 .subtotalFinal(BigDecimal.valueOf(9500))
                 .build();
 
-        SalesDto.OrderItemDto item2 = SalesDto.OrderItemDto.builder()
+        OrderItemDto item2 = OrderItemDto.builder()
                 .denominationName("Tk 100")
                 .batchNumber("LOT-100-20260901")
                 .serialRange("SN-100-0001 ~ SN-100-0300")
@@ -46,7 +48,7 @@ class InvoicePdfServiceTest {
                 .subtotalFinal(BigDecimal.valueOf(28500))
                 .build();
 
-        SalesDto.SalesOrderResponse order = SalesDto.SalesOrderResponse.builder()
+        SalesOrderResponse order = SalesOrderResponse.builder()
                 .orderNumber("ORD-20260916-888")
                 .distributorName("Metro Distribution Ltd.")
                 .distributorEmail("metro@ainext.site")
@@ -64,7 +66,7 @@ class InvoicePdfServiceTest {
                 .items(List.of(item1, item2))
                 .build();
 
-        SalesDto.InvoiceDto invoice = SalesDto.InvoiceDto.builder()
+        InvoiceDto invoice = InvoiceDto.builder()
                 .companyName("IPTSP Global Connect Ltd.")
                 .companyAddress("Gulshan-2, Dhaka-1212, Bangladesh")
                 .companyPhone("+880-2-9880000")
@@ -88,7 +90,7 @@ class InvoicePdfServiceTest {
         assertThatThrownBy(() -> invoicePdfService.generateInvoicePdf(null))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        SalesDto.InvoiceDto emptyInvoice = SalesDto.InvoiceDto.builder().order(null).build();
+        InvoiceDto emptyInvoice = InvoiceDto.builder().order(null).build();
         assertThatThrownBy(() -> invoicePdfService.generateInvoicePdf(emptyInvoice))
                 .isInstanceOf(IllegalArgumentException.class);
     }
