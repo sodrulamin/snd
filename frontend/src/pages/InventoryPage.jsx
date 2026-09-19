@@ -30,6 +30,8 @@ import StatCard from '../components/StatCard';
 import ColumnSelector from '../components/ColumnSelector';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import RowsPerPageSelector from '../components/RowsPerPageSelector';
+import CollapsibleFilter from '../components/CollapsibleFilter';
+import CustomDatePicker from '../components/CustomDatePicker';
 import { inventoryService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
@@ -44,9 +46,21 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Filter States (Multi-select)
+  // Filter States (Multi-select, Search & Date Range)
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [selectedLotNumbers, setSelectedLotNumbers] = useState([]);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const activeFilterCount = [
+    Boolean(searchQuery.trim()),
+    selectedItemIds.length > 0,
+    selectedLotNumbers.length > 0,
+    Boolean(startDate),
+    Boolean(endDate),
+  ].filter(Boolean).length;
 
   // Pagination States
   const [currentPage, setCurrentPage] = useState(0);
@@ -257,27 +271,36 @@ export default function InventoryPage() {
     }
   }, [selectedItemIds]);
 
-  // Load paginated batches with item multi-select and lot multi-select
+  // Load paginated batches with item multi-select, lot multi-select, date range, and search
   const loadBatches = useCallback(async (
     page = currentPage,
     size = pageSize,
-    itemIds = selectedItemIds,
-    lots = selectedLotNumbers
+    overrideFilters = null
   ) => {
     try {
       setLoading(true);
+      const items = overrideFilters ? overrideFilters.itemIds : selectedItemIds;
+      const lots = overrideFilters ? overrideFilters.lots : selectedLotNumbers;
+      const search = overrideFilters ? overrideFilters.search : searchQuery;
+      const start = overrideFilters && 'startDate' in overrideFilters ? overrideFilters.startDate : startDate;
+      const end = overrideFilters && 'endDate' in overrideFilters ? overrideFilters.endDate : endDate;
+
       const res = await inventoryService.getBatches({
         page,
         size,
         status: 'AVAILABLE',
-        denominationIds: itemIds && itemIds.length > 0 ? itemIds : undefined,
+        denominationIds: items && items.length > 0 ? items : undefined,
         batchNumbers: lots && lots.length > 0 ? lots : undefined,
+        startDate: start || undefined,
+        endDate: end || undefined,
+        search: search && search.trim() ? search.trim() : undefined,
       });
       if (res.data?.success) {
         const pageData = res.data.data;
         setBatches(pageData.content || []);
         setTotalPages(pageData.totalPages || 1);
         setTotalElements(pageData.totalElements || 0);
+        setCurrentPage(page);
       }
     } catch (err) {
       console.error('Failed to load batches', err);
@@ -285,7 +308,23 @@ export default function InventoryPage() {
       setLoading(false);
       setPageLoading(false);
     }
-  }, [currentPage, pageSize, selectedItemIds, selectedLotNumbers, setPageLoading]);
+  }, [currentPage, pageSize, selectedItemIds, selectedLotNumbers, startDate, endDate, searchQuery, setPageLoading]);
+
+  const handleApplyFilters = (e) => {
+    if (e) e.preventDefault();
+    setCurrentPage(0);
+    loadBatches(0, pageSize);
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedItemIds([]);
+    setSelectedLotNumbers([]);
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(0);
+    loadBatches(0, pageSize, { itemIds: [], lots: [], search: '', startDate: '', endDate: '' });
+  };
 
   // Initial load
   useEffect(() => {
@@ -299,10 +338,10 @@ export default function InventoryPage() {
     loadLotNumbers(selectedItemIds);
   }, [selectedItemIds]);
 
-  // Fetch batches when page, pageSize, or multi-filters change
+  // Fetch batches when page or pageSize change
   useEffect(() => {
-    loadBatches(currentPage, pageSize, selectedItemIds, selectedLotNumbers);
-  }, [currentPage, pageSize, selectedItemIds, selectedLotNumbers, loadBatches]);
+    loadBatches(currentPage, pageSize);
+  }, [currentPage, pageSize]);
 
   // Calculate quantity and validation status from serial range
   const calculateSerialQuantity = (start, end) => {
@@ -430,6 +469,9 @@ export default function InventoryPage() {
         status: 'AVAILABLE',
         denominationIds: selectedItemIds.length > 0 ? selectedItemIds : undefined,
         batchNumbers: selectedLotNumbers.length > 0 ? selectedLotNumbers : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        search: searchQuery && searchQuery.trim() ? searchQuery.trim() : undefined,
       });
 
       const exportBatches = res.data?.data || [];
@@ -526,6 +568,108 @@ export default function InventoryPage() {
         />
       </div>
 
+      {/* Search & Filter (Collapsible) */}
+      <CollapsibleFilter
+        isOpen={isFilterOpen}
+        onToggle={() => setIsFilterOpen(prev => !prev)}
+        onApply={handleApplyFilters}
+        onReset={handleResetFilters}
+        activeFilterCount={activeFilterCount}
+        isSubmitting={loading}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          {/* Keyword Search */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              Search Keyword
+            </label>
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search lot #, serials, notes..."
+                className="w-full pl-9 pr-8 py-2 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-teal-500 transition"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  data-action="clear"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Item / Product */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              Item / Product
+            </label>
+            <MultiSelectDropdown
+              label="Item"
+              icon={CreditCard}
+              placeholder="All Items"
+              searchPlaceholder="Search card products..."
+              options={availableDenominations.map((d) => ({
+                value: d.id,
+                label: d.name,
+                sublabel: `৳${Number(d.faceValue || d.retailPrice || 0).toFixed(0)}`,
+              }))}
+              selectedValues={selectedItemIds}
+              onChange={(newIds) => setSelectedItemIds(newIds)}
+            />
+          </div>
+
+          {/* Lot # */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              Lot Number
+            </label>
+            <MultiSelectDropdown
+              label="Lot #"
+              icon={Layers}
+              placeholder="All Lots"
+              searchPlaceholder="Search lot numbers..."
+              options={lotNumbers.map((num) => ({
+                value: num,
+                label: num,
+              }))}
+              selectedValues={selectedLotNumbers}
+              onChange={(newLots) => setSelectedLotNumbers(newLots)}
+            />
+          </div>
+
+          {/* Start Date (Added Time) */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              Start Date
+            </label>
+            <CustomDatePicker
+              value={startDate}
+              onChange={setStartDate}
+              placeholder="Select start date"
+            />
+          </div>
+
+          {/* End Date (Added Time) */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              End Date
+            </label>
+            <CustomDatePicker
+              value={endDate}
+              onChange={setEndDate}
+              placeholder="Select end date"
+            />
+          </div>
+        </div>
+      </CollapsibleFilter>
+
       {/* Inventory Details Table */}
       <div className="rounded-2xl bg-slate-900/60 border border-slate-800 overflow-hidden shadow-lg">
         <div className="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-950/40">
@@ -571,106 +715,7 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        {/* Multi-Select Filter Toolbar */}
-        <div className="p-3.5 bg-slate-950/70 border-b border-slate-800 space-y-3">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Filter 1: Item / Card Product (Multi-select) */}
-            <div className="w-full sm:w-72">
-              <MultiSelectDropdown
-                label="Item"
-                icon={CreditCard}
-                placeholder="All Items"
-                searchPlaceholder="Search card products..."
-                options={availableDenominations.map((d) => ({
-                  value: d.id,
-                  label: d.name,
-                  sublabel: `৳${Number(d.faceValue || d.retailPrice || 0).toFixed(0)}`,
-                }))}
-                selectedValues={selectedItemIds}
-                onChange={(newIds) => {
-                  setSelectedItemIds(newIds);
-                  setCurrentPage(0);
-                }}
-              />
-            </div>
 
-            {/* Filter 2: Lot Number (Multi-select) */}
-            <div className="w-full sm:w-72">
-              <MultiSelectDropdown
-                label="Lot #"
-                icon={Layers}
-                placeholder="All Lots"
-                searchPlaceholder="Search lot numbers..."
-                options={lotNumbers.map((num) => ({
-                  value: num,
-                  label: num,
-                }))}
-                selectedValues={selectedLotNumbers}
-                onChange={(newLots) => {
-                  setSelectedLotNumbers(newLots);
-                  setCurrentPage(0);
-                }}
-              />
-            </div>
-
-            {/* Reset All Filters Button */}
-            {(selectedItemIds.length > 0 || selectedLotNumbers.length > 0) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedItemIds([]);
-                  setSelectedLotNumbers([]);
-                  setCurrentPage(0);
-                }}
-                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-400 hover:text-teal-300 text-xs font-semibold shrink-0 transition flex items-center justify-center gap-1.5 border border-slate-700/60"
-                title="Reset all active filters"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>Reset Filters</span>
-              </button>
-            )}
-          </div>
-
-          {/* Active filter tags */}
-          {(selectedItemIds.length > 0 || selectedLotNumbers.length > 0) && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
-              <span className="text-[11px] text-slate-500 font-medium mr-1">Active Filters:</span>
-              {selectedItemIds.map((id) => {
-                const item = denominations.find((d) => d.id === id);
-                return (
-                  <span
-                    key={`item-${id}`}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-teal-500/10 text-teal-300 border border-teal-500/25 text-[11px]"
-                  >
-                    <span>Item: {item?.name || id}</span>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedItemIds((prev) => prev.filter((v) => v !== id))}
-                      className="hover:text-white"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                );
-              })}
-              {selectedLotNumbers.map((lot) => (
-                <span
-                  key={`lot-${lot}`}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/25 text-[11px]"
-                >
-                  <span className="font-mono">Lot: {lot}</span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedLotNumbers((prev) => prev.filter((v) => v !== lot))}
-                    className="hover:text-white"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">

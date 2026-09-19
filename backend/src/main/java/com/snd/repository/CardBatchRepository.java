@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -64,6 +65,8 @@ public interface CardBatchRepository extends JpaRepository<CardBatch, Long> {
         WHERE (:status IS NULL OR cb.status = :status)
           AND (:denominationIds IS NULL OR cb.denomination.id IN :denominationIds)
           AND (:batchNumbers IS NULL OR cb.batchNumber IN :batchNumbers)
+          AND (:startDate IS NULL OR cb.generatedAt >= :startDate)
+          AND (:endDate IS NULL OR cb.generatedAt <= :endDate)
           AND (:search IS NULL OR :search = '' OR 
                LOWER(cb.batchNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR 
                LOWER(cb.startSerialNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR 
@@ -76,6 +79,8 @@ public interface CardBatchRepository extends JpaRepository<CardBatch, Long> {
         @Param("status") BatchStatus status,
         @Param("denominationIds") List<Long> denominationIds,
         @Param("batchNumbers") List<String> batchNumbers,
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate,
         @Param("search") String search,
         Pageable pageable
     );
@@ -85,6 +90,8 @@ public interface CardBatchRepository extends JpaRepository<CardBatch, Long> {
         WHERE (:status IS NULL OR cb.status = :status)
           AND (:denominationIds IS NULL OR cb.denomination.id IN :denominationIds)
           AND (:batchNumbers IS NULL OR cb.batchNumber IN :batchNumbers)
+          AND (:startDate IS NULL OR cb.generatedAt >= :startDate)
+          AND (:endDate IS NULL OR cb.generatedAt <= :endDate)
           AND (:search IS NULL OR :search = '' OR 
                LOWER(cb.batchNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR 
                LOWER(cb.startSerialNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR 
@@ -97,6 +104,8 @@ public interface CardBatchRepository extends JpaRepository<CardBatch, Long> {
         @Param("status") BatchStatus status,
         @Param("denominationIds") List<Long> denominationIds,
         @Param("batchNumbers") List<String> batchNumbers,
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate,
         @Param("search") String search
     );
 }

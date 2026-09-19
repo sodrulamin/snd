@@ -11,8 +11,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -62,6 +65,8 @@ public class InventoryController {
             @RequestParam(required = false) Long denominationId,
             @RequestParam(required = false) List<Long> denominationIds,
             @RequestParam(required = false) List<String> batchNumbers,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String search) {
         List<Long> mergedDenomIds = new java.util.ArrayList<>();
         if (denominationIds != null) {
@@ -70,8 +75,10 @@ public class InventoryController {
         if (denominationId != null && !mergedDenomIds.contains(denominationId)) {
             mergedDenomIds.add(denominationId);
         }
+        LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+        LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : null;
         return ResponseEntity.ok(ApiResponse.success(
-            inventoryService.getBatches(PageRequest.of(page, size), status, mergedDenomIds, batchNumbers, search)
+            inventoryService.getBatches(PageRequest.of(page, size), status, mergedDenomIds, batchNumbers, start, end, search)
         ));
     }
 
@@ -81,6 +88,8 @@ public class InventoryController {
             @RequestParam(required = false) Long denominationId,
             @RequestParam(required = false) List<Long> denominationIds,
             @RequestParam(required = false) List<String> batchNumbers,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String search) {
         List<Long> mergedDenomIds = new java.util.ArrayList<>();
         if (denominationIds != null) {
@@ -89,8 +98,10 @@ public class InventoryController {
         if (denominationId != null && !mergedDenomIds.contains(denominationId)) {
             mergedDenomIds.add(denominationId);
         }
+        LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+        LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : null;
         return ResponseEntity.ok(ApiResponse.success(
-            inventoryService.getBatchesFilteredList(status, mergedDenomIds, batchNumbers, search)
+            inventoryService.getBatchesFilteredList(status, mergedDenomIds, batchNumbers, start, end, search)
         ));
     }
 

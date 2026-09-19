@@ -28,18 +28,21 @@ import {
   Pencil
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
+import CollapsibleFilter from '../components/CollapsibleFilter';
+import CustomDatePicker from '../components/CustomDatePicker';
+import CustomSelect from '../components/CustomSelect';
 import { campaignService, inventoryService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
 
 const PURPOSE_CATEGORIES = [
   { value: 'ALL', label: 'All Categories' },
-  { value: 'CAMPAIGN', label: 'Marketing Campaign', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' },
-  { value: 'INTERNAL_USE', label: 'Internal Office Use', color: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
-  { value: 'TESTING', label: 'QA / Technical Testing', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30' },
-  { value: 'COMPLIMENTARY', label: 'VIP / Complimentary', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
-  { value: 'PROMOTION', label: 'Sales Promotion', color: 'bg-purple-500/10 text-purple-400 border-purple-500/30' },
-  { value: 'OTHER', label: 'Other Purpose', color: 'bg-slate-500/10 text-slate-400 border-slate-500/30' },
+  { value: 'CAMPAIGN', label: 'Marketing Campaign', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30', dotColor: 'bg-indigo-400' },
+  { value: 'INTERNAL_USE', label: 'Internal Office Use', color: 'bg-amber-500/10 text-amber-400 border-amber-500/30', dotColor: 'bg-amber-400' },
+  { value: 'TESTING', label: 'QA / Technical Testing', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30', dotColor: 'bg-cyan-400' },
+  { value: 'COMPLIMENTARY', label: 'VIP / Complimentary', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', dotColor: 'bg-emerald-400' },
+  { value: 'PROMOTION', label: 'Sales Promotion', color: 'bg-purple-500/10 text-purple-400 border-purple-500/30', dotColor: 'bg-purple-400' },
+  { value: 'OTHER', label: 'Other Purpose', color: 'bg-slate-500/10 text-slate-400 border-slate-500/30', dotColor: 'bg-slate-400' },
 ];
 
 export default function CampaignExpensesPage() {
@@ -67,6 +70,20 @@ export default function CampaignExpensesPage() {
     return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const isDefaultStartDate = (() => {
+    const now = new Date();
+    return startDate === new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  })();
+  const isDefaultEndDate = endDate === new Date().toISOString().split('T')[0];
+
+  const activeFilterCount = [
+    Boolean(searchQuery.trim()),
+    selectedCategory !== 'ALL',
+    !isDefaultStartDate,
+    !isDefaultEndDate
+  ].filter(Boolean).length;
 
   // Modals
   const [showCampaignModal, setShowCampaignModal] = useState(false);
@@ -205,6 +222,7 @@ export default function CampaignExpensesPage() {
 
   const handleApplyFilter = (e) => {
     if (e) e.preventDefault();
+    setPage(0);
     fetchData(0);
   };
 
@@ -216,6 +234,7 @@ export default function CampaignExpensesPage() {
     setSelectedCategory('ALL');
     setStartDate(monthStart);
     setEndDate(today);
+    setPage(0);
     setTimeout(() => {
       fetchData(0);
     }, 0);
@@ -577,76 +596,84 @@ export default function CampaignExpensesPage() {
         />
       </div>
 
-      {/* Filter & Action Toolbar */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 shadow-sm">
-        <form onSubmit={handleApplyFilter} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-          {/* Search */}
-          <div className="md:col-span-4 relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by campaign name, ref #, or dept..."
-              className="w-full pl-9 pr-3 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-400 focus:outline-none focus:border-teal-500 transition-colors"
+      {/* Collapsible Search & Filter Toolbar */}
+      <CollapsibleFilter
+        isOpen={isFilterOpen}
+        onToggle={() => setIsFilterOpen(prev => !prev)}
+        onApply={handleApplyFilter}
+        onReset={handleResetFilter}
+        activeFilterCount={activeFilterCount}
+        isSubmitting={loading}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+          {/* Keyword Search */}
+          <div className="sm:col-span-2 lg:col-span-1">
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              Search Keyword
+            </label>
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Name, ref #, dept..."
+                className="w-full pl-9 pr-8 py-2 bg-slate-900/80 border border-slate-700/80 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-teal-500 transition"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  data-action="clear"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              Category
+            </label>
+            <CustomSelect
+              label="Category"
+              icon={Tag}
+              placeholder="All Categories"
+              value={selectedCategory}
+              onChange={(newVal) => setSelectedCategory(newVal || 'ALL')}
+              options={PURPOSE_CATEGORIES}
+              allValue="ALL"
             />
           </div>
 
-          {/* Campaign Category */}
-          <div className="md:col-span-3">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-teal-500 transition-colors"
-            >
-              {PURPOSE_CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-          </div>
-
           {/* Start Date */}
-          <div className="md:col-span-2">
-            <input
-              type="date"
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              Start Date
+            </label>
+            <CustomDatePicker
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-teal-500 transition-colors"
-              title="Start Date"
+              onChange={setStartDate}
+              placeholder="Select start date"
             />
           </div>
 
           {/* End Date */}
-          <div className="md:col-span-2">
-            <input
-              type="date"
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              End Date
+            </label>
+            <CustomDatePicker
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-teal-500 transition-colors"
-              title="End Date"
+              onChange={setEndDate}
+              placeholder="Select end date"
             />
           </div>
-
-          {/* Filter & Reset Buttons */}
-          <div className="md:col-span-1 flex items-center gap-1.5">
-            <button
-              type="submit"
-              className="p-2 bg-teal-500/20 text-teal-400 hover:bg-teal-500/30 rounded-lg border border-teal-500/30 transition-colors"
-              title="Apply Filters"
-            >
-              <Filter className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={handleResetFilter}
-              className="p-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 rounded-lg border border-slate-700 transition-colors"
-              title="Reset Filters"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          </div>
-        </form>
-      </div>
+        </div>
+      </CollapsibleFilter>
 
       {/* Disbursal Records Table */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden shadow-sm">

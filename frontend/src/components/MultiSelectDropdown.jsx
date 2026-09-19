@@ -15,15 +15,22 @@ export default function MultiSelectDropdown({
   const [search, setSearch] = useState('');
   const containerRef = useRef(null);
 
-  // Close on click outside
+  // Close on click outside or global close-filter-dropdowns event
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
         setIsOpen(false);
       }
     };
+    const handleCloseEvent = () => {
+      setIsOpen(false);
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('close-filter-dropdowns', handleCloseEvent);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('close-filter-dropdowns', handleCloseEvent);
+    };
   }, []);
 
   const handleToggleOption = (val) => {
@@ -60,7 +67,15 @@ export default function MultiSelectDropdown({
   const selectedCount = selectedValues.length;
 
   return (
-    <div className={`relative ${className}`} ref={containerRef}>
+    <div
+      className={`relative ${isOpen ? 'z-50' : ''} ${className}`}
+      ref={containerRef}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && isOpen) {
+          setIsOpen(false);
+        }
+      }}
+    >
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
@@ -91,6 +106,7 @@ export default function MultiSelectDropdown({
             <span
               onClick={handleClear}
               role="button"
+              data-action="clear"
               tabIndex={0}
               className="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition"
               title="Clear selection"

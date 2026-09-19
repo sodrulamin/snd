@@ -144,7 +144,8 @@ public class InventoryService {
     }
 
     public Page<BatchSummaryDto> getBatches(
-            Pageable pageable, String statusStr, List<Long> denominationIds, List<String> batchNumbers, String search) {
+            Pageable pageable, String statusStr, List<Long> denominationIds, List<String> batchNumbers,
+            LocalDateTime startDate, LocalDateTime endDate, String search) {
         BatchStatus status = null;
         if (statusStr != null && !statusStr.isBlank() && !"ALL".equalsIgnoreCase(statusStr)) {
             try {
@@ -155,12 +156,13 @@ public class InventoryService {
         List<Long> cleanDenomIds = (denominationIds != null && !denominationIds.isEmpty()) ? denominationIds : null;
         List<String> cleanBatchNumbers = (batchNumbers != null && !batchNumbers.isEmpty()) ? batchNumbers : null;
 
-        return batchRepository.findBatchesFiltered(status, cleanDenomIds, cleanBatchNumbers, cleanSearch, pageable)
+        return batchRepository.findBatchesFiltered(status, cleanDenomIds, cleanBatchNumbers, startDate, endDate, cleanSearch, pageable)
             .map(this::mapToBatchSummary);
     }
 
     public List<BatchSummaryDto> getBatchesFilteredList(
-            String statusStr, List<Long> denominationIds, List<String> batchNumbers, String search) {
+            String statusStr, List<Long> denominationIds, List<String> batchNumbers,
+            LocalDateTime startDate, LocalDateTime endDate, String search) {
         BatchStatus status = null;
         if (statusStr != null && !statusStr.isBlank() && !"ALL".equalsIgnoreCase(statusStr)) {
             try {
@@ -171,7 +173,7 @@ public class InventoryService {
         List<Long> cleanDenomIds = (denominationIds != null && !denominationIds.isEmpty()) ? denominationIds : null;
         List<String> cleanBatchNumbers = (batchNumbers != null && !batchNumbers.isEmpty()) ? batchNumbers : null;
 
-        return batchRepository.findBatchesFilteredList(status, cleanDenomIds, cleanBatchNumbers, cleanSearch)
+        return batchRepository.findBatchesFilteredList(status, cleanDenomIds, cleanBatchNumbers, startDate, endDate, cleanSearch)
             .stream()
             .map(this::mapToBatchSummary)
             .collect(Collectors.toList());
