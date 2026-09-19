@@ -17,11 +17,13 @@ import {
   GripVertical, 
   X, 
   Megaphone,
-  KeyRound
+  KeyRound,
+  Pencil
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoading } from '../context/PageLoadingContext';
 import ChangePasswordModal from './ChangePasswordModal';
+import UpdateProfileModal from './UpdateProfileModal';
 
 const MIN_WIDTH = 80;
 const COLLAPSE_THRESHOLD = 160;
@@ -60,8 +62,16 @@ export default function Sidebar({ isOpen, onClose }) {
   const isSettingsActive = location.pathname.startsWith('/settings');
   const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsActive);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileContainerRef = useRef(null);
+
+  const displayName = (user?.name && user.name.trim() !== '' && user.name !== 'System Administrator')
+    ? user.name
+    : (user?.fullName && user.fullName.trim() !== '' && user.fullName !== 'System Administrator')
+      ? user.fullName
+      : (user?.username || 'User');
+  const userInitial = displayName.charAt(0).toUpperCase();
 
   // Close profile popup on outside click
   useEffect(() => {
@@ -399,36 +409,37 @@ export default function Sidebar({ isOpen, onClose }) {
                   : 'bottom-full mb-2 left-2 right-2'
               }`}
             >
-              {/* User Info Header in Popup */}
-              <div className="px-3 py-2.5 mb-1.5 border-b border-slate-800/80 bg-slate-800/40 rounded-xl">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                    {user?.fullName ? user.fullName.charAt(0) : 'U'}
-                  </div>
-                  <div className="overflow-hidden min-w-0 flex-1">
-                    <div className="text-xs font-semibold text-white truncate">
-                      {user?.fullName || user?.username || 'User'}
+              {/* User Info Header in Popup (Clickable to open Edit Profile Modal) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProfileMenuOpen(false);
+                  if (onClose) onClose();
+                  setShowProfileModal(true);
+                }}
+                className="w-full text-left p-2.5 mb-1.5 border border-slate-800/80 hover:border-teal-500/40 bg-slate-800/40 hover:bg-slate-800/90 rounded-xl transition-all duration-150 group cursor-pointer block"
+                title="Click to edit profile"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 group-hover:border-teal-500/40 group-hover:bg-teal-500/20 flex items-center justify-center font-bold text-xs flex-shrink-0 transition-colors">
+                      {userInitial}
                     </div>
-                    {user?.username && (
-                      <div className="text-[11px] text-slate-400 truncate">
-                        @{user.username}
+                    <div className="overflow-hidden min-w-0 flex-1">
+                      <div className="text-xs font-semibold text-white group-hover:text-teal-300 truncate transition-colors flex items-center gap-1.5">
+                        <span className="truncate">{displayName}</span>
+                        <Pencil className="w-3 h-3 text-slate-400 group-hover:text-teal-300 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
                       </div>
-                    )}
+                      {user?.username && (
+                        <div className="text-[11px] text-slate-400 truncate">
+                          @{user.username}
+                        </div>
+                      )}
+                    </div>
                   </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-teal-300 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
                 </div>
-                <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-800/60">
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                    isAdmin ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                  }`}>
-                    {user?.role || 'USER'}
-                  </span>
-                  {user?.balance !== undefined && !isAdmin && (
-                    <span className="text-[11px] text-teal-400 font-medium">
-                      ৳{Number(user.balance).toLocaleString()}
-                    </span>
-                  )}
-                </div>
-              </div>
+              </button>
 
               {/* Sub-menu Items */}
               <div className="space-y-1">
@@ -464,7 +475,7 @@ export default function Sidebar({ isOpen, onClose }) {
           <button
             type="button"
             onClick={() => setIsProfileMenuOpen((prev) => !prev)}
-            title={`${user?.fullName || user?.username || 'User'} (${user?.role || 'USER'})`}
+            title={`${displayName} (${user?.role || 'USER'})`}
             className={`w-full p-2 rounded-xl flex items-center transition-all duration-150 cursor-pointer text-left border ${
               isProfileMenuOpen 
                 ? 'bg-slate-800/90 border-slate-700 shadow-md ring-1 ring-teal-500/30' 
@@ -472,13 +483,13 @@ export default function Sidebar({ isOpen, onClose }) {
             } ${isCollapsed ? 'lg:justify-center lg:p-2' : 'gap-2.5'}`}
           >
             <div className="w-9 h-9 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold text-sm flex-shrink-0">
-              {user?.fullName ? user.fullName.charAt(0) : 'U'}
+              {userInitial}
             </div>
 
             <div className={`overflow-hidden flex-1 min-w-0 ${isCollapsed ? 'lg:hidden' : 'block'}`}>
               <div className="flex items-center justify-between gap-1">
                 <span className="text-xs font-semibold text-white truncate">
-                  {user?.fullName || user?.username}
+                  {displayName}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
@@ -507,6 +518,11 @@ export default function Sidebar({ isOpen, onClose }) {
       <ChangePasswordModal
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
+      />
+
+      <UpdateProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
       />
     </>
   );

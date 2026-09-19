@@ -3,6 +3,7 @@ package com.snd.service;
 import com.snd.dto.auth.*;
 import com.snd.model.PartnerProfile;
 import com.snd.model.User;
+import com.snd.repository.PartnerProfileRepository;
 import com.snd.repository.UserRepository;
 import java.math.BigDecimal;
 import com.snd.security.CustomUserDetails;
@@ -22,6 +23,7 @@ public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
+    private final PartnerProfileRepository partnerProfileRepository;
     private final JwtTokenProvider tokenProvider;
     private final PasswordEncoder passwordEncoder;
 
@@ -77,6 +79,37 @@ public class AuthService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    @Transactional
+    public UserProfileDto updateCurrentUserProfile(String username, UpdateProfileRequest request) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
+
+        user.setName(request.getName().trim());
+        user.setMobile(request.getMobile() != null ? request.getMobile().trim() : null);
+        user.setEmail(request.getEmail() != null ? request.getEmail().trim() : null);
+        user.setAddress(request.getAddress() != null ? request.getAddress().trim() : null);
+
+        if (user.getPartnerProfile() != null) {
+            PartnerProfile profile = user.getPartnerProfile();
+            if (request.getName() != null && !request.getName().isBlank()) {
+                profile.setContactPerson(request.getName().trim());
+            }
+            if (request.getMobile() != null) {
+                profile.setPhone(request.getMobile().trim());
+            }
+            if (request.getEmail() != null) {
+                profile.setEmail(request.getEmail().trim());
+            }
+            if (request.getAddress() != null) {
+                profile.setAddress(request.getAddress().trim());
+            }
+            partnerProfileRepository.save(profile);
+        }
+
+        user = userRepository.save(user);
+        return mapToProfileDto(user);
     }
 
     private UserProfileDto mapToProfileDto(User user) {

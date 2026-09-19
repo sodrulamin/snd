@@ -84,6 +84,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUserProfile = async (profileData) => {
+    const res = await authService.updateProfile(profileData);
+    if (res.data && res.data.success) {
+      const updated = res.data.data;
+      setUser((prev) => ({ ...prev, ...updated }));
+      try {
+        const saved = localStorage.getItem('snd_user');
+        const parsed = saved ? JSON.parse(saved) : {};
+        localStorage.setItem('snd_user', JSON.stringify({ ...parsed, ...updated }));
+      } catch (e) {}
+      return updated;
+    }
+    throw new Error(res.data?.message || 'Failed to update profile');
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -95,6 +110,7 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         refreshUserData,
+        updateUserProfile,
       }}
     >
       {children}
