@@ -332,8 +332,8 @@ public class SalesService {
             String creatorEmail = null;
             if (createdByUsername != null && !createdByUsername.isBlank()) {
                 User creator = userRepository.findByUsername(createdByUsername).orElse(null);
-                if (creator != null && creator.getPartnerProfile() != null && creator.getPartnerProfile().getEmail() != null) {
-                    creatorEmail = creator.getPartnerProfile().getEmail().trim();
+                if (creator != null && creator.getEmail() != null) {
+                    creatorEmail = creator.getEmail().trim();
                 }
             }
 
