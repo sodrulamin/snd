@@ -30,7 +30,6 @@ class SMSServiceTest {
                 .build();
 
         PartnerProfile profile = PartnerProfile.builder()
-                .user(user)
                 .companyName("Sodrul Telecom Ltd")
                 .creditLimit(BigDecimal.valueOf(25000))
                 .discountRate(BigDecimal.valueOf(5.5))

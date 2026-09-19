@@ -29,6 +29,7 @@ public class DistributorRequest {
     @Builder.Default
     private BigDecimal discountRate = BigDecimal.ZERO;
     private String address;
+    private Long partnerProfileId;
     @Builder.Default
     private String status = "ACTIVE";
 }

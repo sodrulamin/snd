@@ -123,7 +123,6 @@ class MailServiceTest {
                 .build();
         PartnerProfile profile = PartnerProfile.builder()
                 .id(1L)
-                .user(distributor)
                 .companyName("Gulshan Telecom")
                 .email("gulshan@example.com")
                 .phone("+8801700000000")
@@ -223,7 +222,6 @@ class MailServiceTest {
                 .build();
         PartnerProfile profile = PartnerProfile.builder()
                 .id(1L)
-                .user(distributor)
                 .companyName("Gulshan Telecom")
                 .email("gulshan@example.com")
                 .build();

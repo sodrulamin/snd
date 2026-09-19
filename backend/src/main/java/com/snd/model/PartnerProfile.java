@@ -7,6 +7,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "partner_profiles")
@@ -21,9 +23,9 @@ public class PartnerProfile {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
-    private User user;
+    @OneToMany(mappedBy = "partnerProfile", fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<User> users = new ArrayList<>();
 
     @Column(name = "company_name", nullable = false, length = 150)
     private String companyName;

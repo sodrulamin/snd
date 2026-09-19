@@ -15,9 +15,12 @@ import java.time.LocalDateTime;
 public class UserProfileDto {
     private Long id;
     private String username;
+    private String name;
     private String fullName;
     private String email;
+    private String mobile;
     private String phone;
+    private Long partnerProfileId;
     private String role;
     private String status;
     private BigDecimal balance;

@@ -37,13 +37,23 @@ public class AuthService {
         String jwt = tokenProvider.generateToken(authentication);
 
         PartnerProfile profile = user.getPartnerProfile();
+        String fullName = user.getName() != null && !user.getName().isBlank()
+                ? user.getName()
+                : (profile != null ? profile.getFullName() : user.getUsername());
+        String email = user.getEmail() != null && !user.getEmail().isBlank()
+                ? user.getEmail()
+                : (profile != null ? profile.getEmail() : null);
+
         return LoginResponse.builder()
                 .token(jwt)
                 .tokenType("Bearer")
                 .id(user.getId())
                 .username(user.getUsername())
-                .fullName(profile != null ? profile.getFullName() : user.getUsername())
-                .email(profile != null ? profile.getEmail() : null)
+                .name(user.getName())
+                .fullName(fullName)
+                .email(email)
+                .mobile(user.getMobile())
+                .partnerProfileId(profile != null ? profile.getId() : null)
                 .role(user.getRole())
                 .balance(profile != null ? profile.getBalance() : BigDecimal.ZERO)
                 .creditLimit(profile != null ? profile.getCreditLimit() : BigDecimal.ZERO)
@@ -71,18 +81,34 @@ public class AuthService {
 
     private UserProfileDto mapToProfileDto(User user) {
         PartnerProfile profile = user.getPartnerProfile();
+        String fullName = user.getName() != null && !user.getName().isBlank()
+                ? user.getName()
+                : (profile != null ? profile.getFullName() : user.getUsername());
+        String email = user.getEmail() != null && !user.getEmail().isBlank()
+                ? user.getEmail()
+                : (profile != null ? profile.getEmail() : null);
+        String phone = user.getMobile() != null && !user.getMobile().isBlank()
+                ? user.getMobile()
+                : (profile != null ? profile.getPhone() : null);
+        String address = user.getAddress() != null && !user.getAddress().isBlank()
+                ? user.getAddress()
+                : (profile != null ? profile.getAddress() : null);
+
         return UserProfileDto.builder()
                 .id(user.getId())
                 .username(user.getUsername())
-                .fullName(profile != null ? profile.getFullName() : user.getUsername())
-                .email(profile != null ? profile.getEmail() : null)
-                .phone(profile != null ? profile.getPhone() : null)
+                .name(user.getName())
+                .fullName(fullName)
+                .email(email)
+                .mobile(user.getMobile())
+                .phone(phone)
+                .partnerProfileId(profile != null ? profile.getId() : null)
                 .role(user.getRole())
                 .status(user.getStatus())
                 .balance(profile != null ? profile.getBalance() : BigDecimal.ZERO)
                 .creditLimit(profile != null ? profile.getCreditLimit() : BigDecimal.ZERO)
                 .discountRate(profile != null ? profile.getDiscountRate() : BigDecimal.ZERO)
-                .address(profile != null ? profile.getAddress() : null)
+                .address(address)
                 .createdAt(user.getCreatedAt())
                 .build();
     }

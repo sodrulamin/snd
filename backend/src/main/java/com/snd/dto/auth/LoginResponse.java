@@ -17,8 +17,11 @@ public class LoginResponse {
     private String tokenType = "Bearer";
     private Long id;
     private String username;
+    private String name;
     private String fullName;
     private String email;
+    private String mobile;
+    private Long partnerProfileId;
     private String role;
     private BigDecimal balance;
     private BigDecimal creditLimit;

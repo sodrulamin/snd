@@ -15,6 +15,9 @@ import java.time.LocalDateTime;
 public class DistributorResponse {
     private Long id;
     private String username;
+    private Long partnerProfileId;
+    private String name;
+    private String mobile;
     private String fullName;
     private String contactPerson;
     private String email;

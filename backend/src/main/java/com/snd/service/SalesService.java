@@ -437,14 +437,17 @@ public class SalesService {
                 PartnerProfile profile = distributor.getPartnerProfile();
                 if (profile == null) {
                     profile = partnerProfileRepository.findByUserId(distributor.getId())
-                            .orElseGet(() -> PartnerProfile.builder()
-                                    .user(distributor)
-                                    .companyName(distributor.getUsername())
-                                    .balance(BigDecimal.ZERO)
-                                    .creditLimit(BigDecimal.ZERO)
-                                    .discountRate(BigDecimal.ZERO)
-                                    .build());
+                            .orElseGet(() -> {
+                                PartnerProfile newProfile = PartnerProfile.builder()
+                                        .companyName(distributor.getFullName())
+                                        .balance(BigDecimal.ZERO)
+                                        .creditLimit(BigDecimal.ZERO)
+                                        .discountRate(BigDecimal.ZERO)
+                                        .build();
+                                return partnerProfileRepository.save(newProfile);
+                            });
                     distributor.setPartnerProfile(profile);
+                    userRepository.save(distributor);
                 }
                 BigDecimal prevBalance = profile.getBalance() != null ? profile.getBalance() : BigDecimal.ZERO;
                 BigDecimal newBalance = prevBalance.add(order.getFinalAmount());

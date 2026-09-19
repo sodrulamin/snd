@@ -3,22 +3,19 @@ package com.snd.controller;
 import com.snd.dto.ApiResponse;
 import com.snd.dto.sales.CreateOrderRequest;
 import com.snd.dto.sales.InvoiceDto;
+import com.snd.dto.sales.OrderFilter;
 import com.snd.dto.sales.SalesOrderResponse;
 import com.snd.service.InvoicePdfService;
 import com.snd.service.SalesService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -39,86 +36,29 @@ public class SalesController {
     }
 
     @GetMapping("/orders")
-    public ResponseEntity<ApiResponse<Page<SalesOrderResponse>>> getOrders(
-            @RequestParam(required = false) Long distributorId,
-            @RequestParam(required = false) List<Long> distributorIds,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String paymentMethod,
-            @RequestParam(required = false) List<String> paymentMethods,
-            @RequestParam(required = false) Long denominationId,
-            @RequestParam(required = false) List<Long> denominationIds,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "15") int size) {
-        List<Long> mergedDistIds = new ArrayList<>();
-        if (distributorIds != null) {
-            mergedDistIds.addAll(distributorIds);
-        }
-        if (distributorId != null && !mergedDistIds.contains(distributorId)) {
-            mergedDistIds.add(distributorId);
-        }
-
-        List<String> mergedPayMethods = new ArrayList<>();
-        if (paymentMethods != null) {
-            mergedPayMethods.addAll(paymentMethods);
-        }
-        if (paymentMethod != null && !paymentMethod.isBlank() && !mergedPayMethods.contains(paymentMethod)) {
-            mergedPayMethods.add(paymentMethod);
-        }
-
-        List<Long> mergedDenomIds = new ArrayList<>();
-        if (denominationIds != null) {
-            mergedDenomIds.addAll(denominationIds);
-        }
-        if (denominationId != null && !mergedDenomIds.contains(denominationId)) {
-            mergedDenomIds.add(denominationId);
-        }
-
+    public ResponseEntity<ApiResponse<Page<SalesOrderResponse>>> getOrders(OrderFilter filter) {
         Page<SalesOrderResponse> orders = salesService.getOrders(
-                mergedDistIds, status, mergedPayMethods, mergedDenomIds, startDate, endDate, search, PageRequest.of(page, size));
+                filter.getMergedDistributorIds(),
+                filter.getStatus(),
+                filter.getMergedPaymentMethods(),
+                filter.getMergedDenominationIds(),
+                filter.getStartDate(),
+                filter.getEndDate(),
+                filter.getSearch(),
+                filter.toPageable());
         return ResponseEntity.ok(ApiResponse.success(orders));
     }
 
     @GetMapping("/orders/all")
-    public ResponseEntity<ApiResponse<List<SalesOrderResponse>>> getAllOrders(
-            @RequestParam(required = false) Long distributorId,
-            @RequestParam(required = false) List<Long> distributorIds,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String paymentMethod,
-            @RequestParam(required = false) List<String> paymentMethods,
-            @RequestParam(required = false) Long denominationId,
-            @RequestParam(required = false) List<Long> denominationIds,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
-        List<Long> mergedDistIds = new ArrayList<>();
-        if (distributorIds != null) {
-            mergedDistIds.addAll(distributorIds);
-        }
-        if (distributorId != null && !mergedDistIds.contains(distributorId)) {
-            mergedDistIds.add(distributorId);
-        }
-
-        List<String> mergedPayMethods = new ArrayList<>();
-        if (paymentMethods != null) {
-            mergedPayMethods.addAll(paymentMethods);
-        }
-        if (paymentMethod != null && !paymentMethod.isBlank() && !mergedPayMethods.contains(paymentMethod)) {
-            mergedPayMethods.add(paymentMethod);
-        }
-
-        List<Long> mergedDenomIds = new ArrayList<>();
-        if (denominationIds != null) {
-            mergedDenomIds.addAll(denominationIds);
-        }
-        if (denominationId != null && !mergedDenomIds.contains(denominationId)) {
-            mergedDenomIds.add(denominationId);
-        }
-
+    public ResponseEntity<ApiResponse<List<SalesOrderResponse>>> getAllOrders(OrderFilter filter) {
         List<SalesOrderResponse> orders = salesService.getAllOrders(
-                mergedDistIds, status, mergedPayMethods, mergedDenomIds, startDate, endDate, search);
+                filter.getMergedDistributorIds(),
+                filter.getStatus(),
+                filter.getMergedPaymentMethods(),
+                filter.getMergedDenominationIds(),
+                filter.getStartDate(),
+                filter.getEndDate(),
+                filter.getSearch());
         return ResponseEntity.ok(ApiResponse.success(orders));
     }
 

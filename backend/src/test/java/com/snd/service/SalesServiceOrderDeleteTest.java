@@ -76,7 +76,6 @@ class SalesServiceOrderDeleteTest {
                 .build();
         PartnerProfile partnerProfile = PartnerProfile.builder()
                 .id(10L)
-                .user(distributor)
                 .companyName("Distributor Rahim")
                 .balance(BigDecimal.valueOf(5000))
                 .build();
