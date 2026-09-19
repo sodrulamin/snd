@@ -60,9 +60,12 @@ public class DistributorService {
             profile = partnerProfileRepository.findById(request.getPartnerProfileId())
                     .orElseThrow(() -> new IllegalArgumentException("Partner profile not found: " + request.getPartnerProfileId()));
         } else {
+            String compName = request.getFullName() != null && !request.getFullName().isBlank()
+                    ? request.getFullName().trim()
+                    : request.getUsername();
             profile = PartnerProfile.builder()
-                    .companyName(request.getFullName())
-                    .contactPerson(request.getContactPerson())
+                    .companyName(compName)
+                    .contactPerson(request.getContactPerson() != null && !request.getContactPerson().isBlank() ? request.getContactPerson().trim() : null)
                     .email(request.getEmail())
                     .phone(request.getPhone())
                     .address(request.getAddress())
@@ -73,10 +76,14 @@ public class DistributorService {
             profile = partnerProfileRepository.save(profile);
         }
 
+        String contactName = request.getContactPerson() != null && !request.getContactPerson().isBlank()
+                ? request.getContactPerson().trim()
+                : (request.getFullName() != null && !request.getFullName().isBlank() ? request.getFullName().trim() : request.getUsername());
+
         User distributor = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(rawPassword))
-                .name(request.getFullName())
+                .name(contactName)
                 .mobile(request.getPhone())
                 .email(request.getEmail())
                 .address(request.getAddress())
@@ -119,7 +126,6 @@ public class DistributorService {
             distributor.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 
-        if (request.getFullName() != null) distributor.setName(request.getFullName().trim());
         if (request.getPhone() != null) distributor.setMobile(request.getPhone().trim());
         if (request.getEmail() != null) distributor.setEmail(request.getEmail().trim());
         if (request.getAddress() != null) distributor.setAddress(request.getAddress().trim());
@@ -132,15 +138,27 @@ public class DistributorService {
 
         PartnerProfile profile = distributor.getPartnerProfile();
         if (profile == null) {
+            String initialCompName = request.getFullName() != null && !request.getFullName().isBlank()
+                    ? request.getFullName().trim()
+                    : distributor.getUsername();
             profile = PartnerProfile.builder()
-                    .companyName(distributor.getName() != null ? distributor.getName() : distributor.getUsername())
+                    .companyName(initialCompName)
                     .build();
             profile = partnerProfileRepository.save(profile);
             distributor.setPartnerProfile(profile);
         }
 
-        if (request.getFullName() != null) profile.setCompanyName(request.getFullName().trim());
-        if (request.getContactPerson() != null) profile.setContactPerson(request.getContactPerson().trim());
+        if (request.getFullName() != null && !request.getFullName().isBlank()) {
+            profile.setCompanyName(request.getFullName().trim());
+        }
+        if (request.getContactPerson() != null && !request.getContactPerson().isBlank()) {
+            profile.setContactPerson(request.getContactPerson().trim());
+            distributor.setName(request.getContactPerson().trim());
+        } else if (distributor.getName() == null || distributor.getName().isBlank()) {
+            if (request.getFullName() != null && !request.getFullName().isBlank()) {
+                distributor.setName(request.getFullName().trim());
+            }
+        }
         if (request.getEmail() != null) profile.setEmail(request.getEmail().trim());
         if (request.getPhone() != null) profile.setPhone(request.getPhone().trim());
         if (request.getAddress() != null) profile.setAddress(request.getAddress().trim());
@@ -180,7 +198,7 @@ public class DistributorService {
                 .amount(request.getAmount())
                 .previousBalance(prevBalance)
                 .newBalance(newBalance)
-                .referenceType(request.getReferenceType() != null ? request.getReferenceType() : "MANUAL_ADJUSTMENT")
+                .referenceType(request.getReferenceType())
                 .referenceId(request.getReferenceId())
                 .notes(request.getNotes())
                 .build();
@@ -204,13 +222,10 @@ public class DistributorService {
         User distributor = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Distributor not found: " + id));
 
-        if (!"DISTRIBUTOR".equalsIgnoreCase(distributor.getRole())) {
-            throw new IllegalArgumentException("User is not a distributor");
-        }
-
-        String newStatus = "ACTIVE".equalsIgnoreCase(distributor.getStatus()) ? "INACTIVE" : "ACTIVE";
+        String newStatus = "ACTIVE".equalsIgnoreCase(distributor.getStatus()) ? "DISABLED" : "ACTIVE";
         distributor.setStatus(newStatus);
         distributor = userRepository.save(distributor);
+
         return mapToDistributorResponse(distributor);
     }
 
@@ -219,12 +234,9 @@ public class DistributorService {
         User distributor = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Distributor not found: " + id));
 
-        if (!"DISTRIBUTOR".equalsIgnoreCase(distributor.getRole())) {
-            throw new IllegalArgumentException("User is not a distributor");
-        }
-
-        distributor.setStatus(status != null ? status.toUpperCase() : "ACTIVE");
+        distributor.setStatus(status);
         distributor = userRepository.save(distributor);
+
         return mapToDistributorResponse(distributor);
     }
 
@@ -233,17 +245,12 @@ public class DistributorService {
         User distributor = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Distributor not found: " + id));
 
-        if (!"DISTRIBUTOR".equalsIgnoreCase(distributor.getRole())) {
-            throw new IllegalArgumentException("User is not a distributor");
-        }
-
-        String distName = distributor.getPartnerProfile() != null ? distributor.getPartnerProfile().getCompanyName() : distributor.getUsername();
         List<SalesOrder> orders = salesOrderRepository.findByDistributorIdOrderByCreatedAtDesc(id);
         if (!orders.isEmpty()) {
-            throw new IllegalStateException("Cannot delete distributor '" + distName + "' because they have " + orders.size() + " recorded sales order(s). You can change their status to INACTIVE or SUSPENDED instead.");
+            throw new IllegalStateException("Cannot delete distributor with existing sales orders. Consider disabling instead.");
         }
 
-        List<DistributorTransaction> txns = transactionRepository.findByDistributorIdOrderByCreatedAtDesc(id);
+        List<DistributorTransaction> txns = transactionRepository.findByDistributorIdOrderByCreatedAtDesc(id, Pageable.unpaged()).getContent();
         if (!txns.isEmpty()) {
             transactionRepository.deleteAll(txns);
         }
@@ -270,17 +277,34 @@ public class DistributorService {
         BigDecimal creditLimit = p != null && p.getCreditLimit() != null ? p.getCreditLimit() : BigDecimal.ZERO;
         BigDecimal availableCredit = balance.add(creditLimit);
         BigDecimal discountRate = p != null && p.getDiscountRate() != null ? p.getDiscountRate() : BigDecimal.ZERO;
-        String fullName = u.getName() != null && !u.getName().isBlank() ? u.getName() : (p != null ? p.getCompanyName() : u.getUsername());
-        String contactPerson = p != null ? p.getContactPerson() : null;
-        String email = u.getEmail() != null && !u.getEmail().isBlank() ? u.getEmail() : (p != null ? p.getEmail() : null);
-        String phone = u.getMobile() != null && !u.getMobile().isBlank() ? u.getMobile() : (p != null ? p.getPhone() : null);
-        String address = u.getAddress() != null && !u.getAddress().isBlank() ? u.getAddress() : (p != null ? p.getAddress() : null);
+
+        String companyName = (p != null && p.getCompanyName() != null && !p.getCompanyName().isBlank())
+                ? p.getCompanyName()
+                : (u.getName() != null && !u.getName().isBlank() ? u.getName() : u.getUsername());
+        String fullName = companyName;
+
+        String contactPerson = (p != null && p.getContactPerson() != null && !p.getContactPerson().isBlank())
+                ? p.getContactPerson()
+                : (u.getName() != null && !u.getName().isBlank() && !u.getName().equalsIgnoreCase(companyName) ? u.getName() : null);
+
+        String email = (p != null && p.getEmail() != null && !p.getEmail().isBlank())
+                ? p.getEmail()
+                : (u.getEmail() != null && !u.getEmail().isBlank() ? u.getEmail() : null);
+
+        String phone = (p != null && p.getPhone() != null && !p.getPhone().isBlank())
+                ? p.getPhone()
+                : (u.getMobile() != null && !u.getMobile().isBlank() ? u.getMobile() : null);
+
+        String address = (p != null && p.getAddress() != null && !p.getAddress().isBlank())
+                ? p.getAddress()
+                : (u.getAddress() != null && !u.getAddress().isBlank() ? u.getAddress() : null);
 
         return DistributorResponse.builder()
                 .id(u.getId())
                 .username(u.getUsername())
                 .partnerProfileId(p != null ? p.getId() : null)
                 .name(u.getName())
+                .companyName(companyName)
                 .mobile(u.getMobile())
                 .fullName(fullName)
                 .contactPerson(contactPerson)

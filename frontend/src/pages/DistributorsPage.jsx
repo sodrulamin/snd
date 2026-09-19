@@ -152,8 +152,8 @@ export default function DistributorsPage() {
     setEditForm({
       username: dist.username || '',
       password: '',
-      fullName: dist.fullName || '',
-      contactPerson: dist.contactPerson || '',
+      fullName: dist.companyName || dist.fullName || '',
+      contactPerson: dist.contactPerson || (dist.name !== (dist.companyName || dist.fullName) ? dist.name : '') || '',
       email: dist.email || '',
       phone: dist.phone || '',
       creditLimit: dist.creditLimit != null ? String(dist.creditLimit) : '0',
@@ -214,9 +214,10 @@ export default function DistributorsPage() {
   };
   const handleToggleStatus = async (dist) => {
     const isCurrentlyActive = dist.status === 'ACTIVE';
+    const compName = dist.companyName || dist.fullName || dist.username;
     const confirmMsg = isCurrentlyActive
-      ? `Are you sure you want to disable distributor "${dist.fullName}" (@${dist.username})?\n\nThey will be blocked from logging in or receiving new wholesale sales orders until re-enabled.`
-      : `Are you sure you want to activate distributor "${dist.fullName}" (@${dist.username})?`;
+      ? `Are you sure you want to disable distributor "${compName}" (@${dist.username})?\n\nThey will be blocked from logging in or receiving new wholesale sales orders until re-enabled.`
+      : `Are you sure you want to activate distributor "${compName}" (@${dist.username})?`;
     if (!window.confirm(confirmMsg)) return;
 
     try {
@@ -273,62 +274,71 @@ export default function DistributorsPage() {
 
       {/* Distributors Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {distributors.map((d) => (
-          <div key={d.id} className={`rounded-2xl bg-slate-900/80 border p-6 flex flex-col justify-between transition-all group ${
-            d.status === 'ACTIVE' ? 'border-slate-800 hover:border-teal-500/40' : 'border-amber-500/30 bg-slate-900/50 opacity-90'
-          }`}>
-            <div>
-              {/* Partner Card Header */}
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center font-bold text-lg ${
-                    d.status === 'ACTIVE' 
-                      ? 'bg-gradient-to-tr from-teal-500/20 to-emerald-500/10 border-teal-500/30 text-teal-300'
-                      : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+        {distributors.map((d) => {
+          const compName = d.companyName || d.fullName || d.username;
+          const contactName = d.contactPerson || (d.name && d.name !== compName ? d.name : null);
+
+          return (
+            <div key={d.id} className={`rounded-2xl bg-slate-900/80 border p-6 flex flex-col justify-between transition-all group ${
+              d.status === 'ACTIVE' ? 'border-slate-800 hover:border-teal-500/40' : 'border-amber-500/30 bg-slate-900/50 opacity-90'
+            }`}>
+              <div>
+                {/* Partner Card Header */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center font-bold text-lg ${
+                      d.status === 'ACTIVE' 
+                        ? 'bg-gradient-to-tr from-teal-500/20 to-emerald-500/10 border-teal-500/30 text-teal-300'
+                        : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                    }`}>
+                      {compName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white text-base group-hover:text-teal-300 transition">{compName}</h4>
+                      <p className="text-xs text-slate-400 font-mono">@{d.username}</p>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                    d.status === 'ACTIVE'
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                   }`}>
-                    {d.fullName.charAt(0)}
+                    <span className={`w-1.5 h-1.5 rounded-full ${d.status === 'ACTIVE' ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                    {d.status === 'ACTIVE' ? 'ACTIVE' : 'DISABLED'}
+                  </span>
+                </div>
+
+                {/* Financial Box */}
+                <div className="grid grid-cols-2 gap-2 mt-5 p-3.5 rounded-xl bg-slate-950/80 border border-slate-800">
+                  <div>
+                    <p className="text-[11px] text-slate-400">Current Balance</p>
+                    <p className={`text-lg font-mono font-black ${d.balance >= 0 ? 'text-teal-400' : 'text-red-400'}`}>
+                      ৳{Number(d.balance).toFixed(2)}
+                    </p>
                   </div>
                   <div>
-                    <h4 className="font-bold text-white text-base group-hover:text-teal-300 transition">{d.fullName}</h4>
-                    <p className="text-xs text-slate-400 font-mono">@{d.username}</p>
+                    <p className="text-[11px] text-slate-400">Credit Limit</p>
+                    <p className="text-lg font-mono font-bold text-white">৳{Number(d.creditLimit).toFixed(2)}</p>
+                  </div>
+                  <div className="col-span-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                    <span className="text-slate-400">Discount Tier: <strong className="text-emerald-400 font-bold">{d.discountRate}%</strong></span>
+                    <span className="text-slate-400">Orders: <strong className="text-white">{d.totalOrdersCount || 0}</strong></span>
                   </div>
                 </div>
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                  d.status === 'ACTIVE'
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${d.status === 'ACTIVE' ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
-                  {d.status === 'ACTIVE' ? 'ACTIVE' : 'DISABLED'}
-                </span>
-              </div>
 
-              {/* Financial Box */}
-              <div className="grid grid-cols-2 gap-2 mt-5 p-3.5 rounded-xl bg-slate-950/80 border border-slate-800">
-                <div>
-                  <p className="text-[11px] text-slate-400">Current Balance</p>
-                  <p className={`text-lg font-mono font-black ${d.balance >= 0 ? 'text-teal-400' : 'text-red-400'}`}>
-                    ৳{Number(d.balance).toFixed(2)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-slate-400">Credit Limit</p>
-                  <p className="text-lg font-mono font-bold text-white">৳{Number(d.creditLimit).toFixed(2)}</p>
-                </div>
-                <div className="col-span-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Discount Tier: <strong className="text-emerald-400 font-bold">{d.discountRate}%</strong></span>
-                  <span className="text-slate-400">Orders: <strong className="text-white">{d.totalOrdersCount || 0}</strong></span>
+                {/* Contact details */}
+                <div className="mt-4 space-y-1 text-xs text-slate-400">
+                  {contactName && (
+                    <div className="flex items-center gap-2 truncate">
+                      <User className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                      <span className="text-slate-300">Contact: <strong className="font-medium text-white">{contactName}</strong></span>
+                    </div>
+                  )}
+                  {d.email && <div className="flex items-center gap-2 truncate"><Mail className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" /> <span>{d.email}</span></div>}
+                  {d.phone && <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" /> <span>{d.phone}</span></div>}
+                  {d.address && <div className="flex items-center gap-2 truncate"><MapPin className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" /> <span>{d.address}</span></div>}
                 </div>
               </div>
-
-              {/* Contact details */}
-              <div className="mt-4 space-y-1 text-xs text-slate-400">
-                {d.contactPerson && <div className="flex items-center gap-2 truncate"><User className="w-3.5 h-3.5 text-slate-500" /> <span className="text-slate-300">Contact: <strong className="font-medium text-white">{d.contactPerson}</strong></span></div>}
-                {d.email && <div className="flex items-center gap-2 truncate"><Mail className="w-3.5 h-3.5 text-slate-500" /> <span>{d.email}</span></div>}
-                {d.phone && <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-slate-500" /> <span>{d.phone}</span></div>}
-                {d.address && <div className="flex items-center gap-2 truncate"><MapPin className="w-3.5 h-3.5 text-slate-500" /> <span>{d.address}</span></div>}
-              </div>
-            </div>
 
             {/* Action Bar */}
             <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center gap-2">
@@ -377,8 +387,9 @@ export default function DistributorsPage() {
               )}
             </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
+    </div>
 
       {/* Register Distributor Modal */}
       {showAddModal && createPortal(
@@ -414,7 +425,7 @@ export default function DistributorsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Company / Full Name</label>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Company Name</label>
                 <input
                   type="text"
                   required
@@ -568,7 +579,7 @@ export default function DistributorsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Company / Full Name</label>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Company Name</label>
                 <input
                   type="text"
                   required
@@ -692,7 +703,7 @@ export default function DistributorsPage() {
           <div className="relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl w-full max-w-md p-6 shadow-2xl my-auto z-10 animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-white mb-1">Wallet Top-up & Settlement</h3>
             <p className="text-xs text-slate-400 mb-4">
-              Partner: <strong className="text-white">{selectedDistributor.fullName}</strong>
+              Partner: <strong className="text-white">{selectedDistributor.companyName || selectedDistributor.fullName}</strong>
             </p>
 
             <form onSubmit={handleWalletSubmit} className="space-y-4">
@@ -867,7 +878,7 @@ export default function DistributorsPage() {
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 mb-4 text-xs space-y-1.5 font-mono">
-              <p className="text-slate-300">Name: <strong className="text-white">{deletingDistributor.fullName}</strong></p>
+              <p className="text-slate-300">Company: <strong className="text-white">{deletingDistributor.companyName || deletingDistributor.fullName}</strong></p>
               <p className="text-slate-300">Username: <strong className="text-teal-400">@{deletingDistributor.username}</strong></p>
               <p className="text-slate-300">Wallet Balance: <strong className="text-emerald-400">৳{Number(deletingDistributor.balance).toFixed(2)}</strong></p>
               <p className="text-slate-300">Total Orders: <strong className="text-white">{deletingDistributor.totalOrdersCount || 0}</strong></p>

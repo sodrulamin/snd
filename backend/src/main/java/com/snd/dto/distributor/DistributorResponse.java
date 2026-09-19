@@ -16,6 +16,7 @@ public class DistributorResponse {
     private Long id;
     private String username;
     private Long partnerProfileId;
+    private String companyName;
     private String name;
     private String mobile;
     private String fullName;
