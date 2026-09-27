@@ -11,7 +11,6 @@ import {
   DollarSign, 
   Layers, 
   FileText, 
-  Printer, 
   X, 
   CheckCircle2, 
   AlertCircle, 
@@ -205,8 +204,29 @@ export default function CampaignExpensesPage() {
   useEffect(() => {
     fetchData(0);
     loadInventoryOptions().then(({ denoms, batches }) => {
+      // Detect if this page load was a browser refresh/reload
+      const isReload = (() => {
+        try {
+          const navEntries = performance.getEntriesByType?.('navigation');
+          if (navEntries && navEntries.length > 0) {
+            return navEntries[0].type === 'reload';
+          }
+          return performance?.navigation?.type === 1;
+        } catch (e) {
+          return false;
+        }
+      })();
+
       const navState = location.state;
       const action = searchParams.get('action');
+
+      if (isReload) {
+        if (navState || action === 'new') {
+          window.history.replaceState({}, document.title, location.pathname);
+        }
+        return;
+      }
+
       if (navState?.openCreateModal || action === 'new') {
         const prefill = {
           denominationId: navState?.denominationId || searchParams.get('denominationId'),
@@ -216,6 +236,7 @@ export default function CampaignExpensesPage() {
           category: navState?.category || searchParams.get('category') || 'CAMPAIGN'
         };
         handleOpenCreateModal(prefill);
+        window.history.replaceState({}, document.title, location.pathname);
       }
     });
   }, [location.state]);

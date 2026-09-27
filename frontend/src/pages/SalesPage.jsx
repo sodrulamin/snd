@@ -503,8 +503,32 @@ export default function SalesPage() {
 
   useEffect(() => {
     loadData(0);
+
+    // Detect if this page load was a browser refresh/reload
+    const isReload = (() => {
+      try {
+        const navEntries = performance.getEntriesByType?.('navigation');
+        if (navEntries && navEntries.length > 0) {
+          return navEntries[0].type === 'reload';
+        }
+        return performance?.navigation?.type === 1;
+      } catch (e) {
+        return false;
+      }
+    })();
+
     const navState = location.state;
-    if (navState?.openOrderModal || searchParams.get('action') === 'new') {
+    const isNewAction = searchParams.get('action') === 'new';
+
+    // If page was refreshed, do NOT open create modal, clear any persisted state/search params
+    if (isReload) {
+      if (navState || isNewAction) {
+        window.history.replaceState({}, document.title, location.pathname);
+      }
+      return;
+    }
+
+    if (navState?.openOrderModal || isNewAction) {
       setShowOrderModal(true);
       if (navState?.denominationId && navState?.startSerialNumber && navState?.endSerialNumber) {
         setOrderItems([
@@ -516,6 +540,8 @@ export default function SalesPage() {
           }
         ]);
       }
+      // Immediately clear state so refreshing or future navigations don't re-trigger modal
+      window.history.replaceState({}, document.title, location.pathname);
     }
   }, [location.state]);
 
@@ -605,6 +631,11 @@ export default function SalesPage() {
     }
   };
 
+  const handleCloseOrderModal = () => {
+    setShowOrderModal(false);
+    window.history.replaceState({}, document.title, location.pathname);
+  };
+
   const handleCreateOrder = async (e) => {
     e.preventDefault();
     setFormError('');
@@ -652,7 +683,7 @@ export default function SalesPage() {
 
       const res = await salesService.createOrder(payload);
       if (res.data?.success) {
-        setShowOrderModal(false);
+        handleCloseOrderModal();
         setSelectedDistributorId('');
         setCustomDiscount('');
         setOrderNotes('');
@@ -1267,7 +1298,7 @@ export default function SalesPage() {
           {/* Fullscreen Backdrop Overlay */}
           <div
             className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity"
-            onClick={() => setShowOrderModal(false)}
+            onClick={handleCloseOrderModal}
             aria-hidden="true"
           />
 
@@ -1281,7 +1312,7 @@ export default function SalesPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setShowOrderModal(false)}
+                onClick={handleCloseOrderModal}
                 className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800/60 transition"
               >
                 ✕
@@ -1497,7 +1528,7 @@ export default function SalesPage() {
               <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-800/80 bg-slate-950/40 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setShowOrderModal(false)}
+                  onClick={handleCloseOrderModal}
                   className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-xs font-semibold"
                 >
                   Cancel

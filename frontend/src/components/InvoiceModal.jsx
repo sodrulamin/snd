@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   X, 
-  Printer, 
   Download,
   Loader2,
   PhoneCall, 
@@ -20,32 +19,23 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
 
   const { order, companyName, companyAddress, companyPhone, companyEmail } = data;
   const [downloading, setDownloading] = useState(false);
-  const [printing, setPrinting] = useState(false);
 
   useEffect(() => {
     const originalTitle = document.title;
     if (order?.orderNumber) {
       document.title = `Invoice-${order.orderNumber}`;
     }
-    // Add print-ready class to body while InvoiceModal is open
-    document.body.classList.add('invoice-modal-open');
     return () => {
       document.title = originalTitle;
-      document.body.classList.remove('invoice-modal-open');
     };
   }, [order?.orderNumber]);
-
-  const fetchPdfBlob = async () => {
-    const res = await salesService.getInvoicePdf(order.id);
-    const invoiceFileName = `Invoice-${order.orderNumber}.pdf`;
-    return new File([res.data], invoiceFileName, { type: 'application/pdf' });
-  };
 
   const handleDownloadPdf = async () => {
     try {
       setDownloading(true);
-      const file = await fetchPdfBlob();
-      const url = window.URL.createObjectURL(file);
+      const res = await salesService.getInvoicePdf(order.id);
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `Invoice-${order.orderNumber}.pdf`;
@@ -61,71 +51,15 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
     }
   };
 
-  const handlePrint = async () => {
-    try {
-      setPrinting(true);
-      const invoiceTitle = `Invoice-${order.orderNumber}`;
-      document.title = invoiceTitle;
-
-      const file = await fetchPdfBlob();
-      const blobUrl = window.URL.createObjectURL(file);
-
-      // Create an invisible iframe to print the exact PDF
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = 'none';
-      iframe.name = invoiceTitle;
-      iframe.title = invoiceTitle;
-      iframe.src = blobUrl;
-      document.body.appendChild(iframe);
-
-      let printed = false;
-      const triggerPrint = () => {
-        if (printed) return;
-        printed = true;
-        try {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-        } catch (e) {
-          // If browser restricts iframe printing of PDF, open in new tab
-          window.open(blobUrl, '_blank');
-        }
-      };
-
-      iframe.onload = triggerPrint;
-      // Fallback timer if iframe.onload doesn't fire for PDF plugin
-      setTimeout(triggerPrint, 1000);
-
-      setTimeout(() => {
-        try {
-          if (document.body.contains(iframe)) {
-            document.body.removeChild(iframe);
-          }
-          window.URL.revokeObjectURL(blobUrl);
-        } catch (e) {}
-      }, 60000);
-    } catch (err) {
-      console.error('Failed to print PDF', err);
-      // Fallback to window.print which uses document.title
-      window.print();
-    } finally {
-      setPrinting(false);
-    }
-  };
-
   return createPortal(
-    <div className="invoice-modal-portal fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4 sm:p-6 print:p-0">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4 sm:p-6">
       <div 
-        className="invoice-modal-backdrop fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity print:hidden"
+        className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="invoice-modal-content relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl my-8 z-10 print:my-0 print:border-none print:shadow-none animate-in fade-in zoom-in-95 duration-150">
-        <div className="invoice-modal-header flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md print:hidden">
+      <div className="relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl my-8 z-10 animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
             <h3 className="font-semibold text-white">Sales Voucher & Official Invoice</h3>
@@ -134,20 +68,11 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
             <button
               onClick={handleDownloadPdf}
               disabled={downloading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold shadow-sm transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold shadow-sm transition disabled:opacity-50"
               title="Download official PDF invoice"
             >
               {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-              Download PDF
-            </button>
-            <button
-              onClick={handlePrint}
-              disabled={printing}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition disabled:opacity-50"
-              title="Print official voucher"
-            >
-              {printing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
-              Print Voucher
+              <span>Download PDF</span>
             </button>
             <button
               onClick={onClose}
