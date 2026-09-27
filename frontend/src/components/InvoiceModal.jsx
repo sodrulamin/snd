@@ -1,46 +1,152 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   X, 
   Printer, 
+  Download,
+  Loader2,
   PhoneCall, 
   ShieldCheck, 
   Calendar, 
   User, 
-  CreditCard,
+  CreditCard, 
   Hash
 } from 'lucide-react';
-import { inventoryService } from '../services/api';
+import { salesService } from '../services/api';
 
 export default function InvoiceModal({ invoice, invoiceData, onClose }) {
   const data = invoice || invoiceData;
   if (!data || !data.order) return null;
 
   const { order, companyName, companyAddress, companyPhone, companyEmail } = data;
+  const [downloading, setDownloading] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
-  const handlePrint = () => {
-    window.print();
+  useEffect(() => {
+    const originalTitle = document.title;
+    if (order?.orderNumber) {
+      document.title = `Invoice-${order.orderNumber}`;
+    }
+    // Add print-ready class to body while InvoiceModal is open
+    document.body.classList.add('invoice-modal-open');
+    return () => {
+      document.title = originalTitle;
+      document.body.classList.remove('invoice-modal-open');
+    };
+  }, [order?.orderNumber]);
+
+  const fetchPdfBlob = async () => {
+    const res = await salesService.getInvoicePdf(order.id);
+    const invoiceFileName = `Invoice-${order.orderNumber}.pdf`;
+    return new File([res.data], invoiceFileName, { type: 'application/pdf' });
+  };
+
+  const handleDownloadPdf = async () => {
+    try {
+      setDownloading(true);
+      const file = await fetchPdfBlob();
+      const url = window.URL.createObjectURL(file);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice-${order.orderNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+    } catch (err) {
+      console.error('Failed to download invoice PDF', err);
+      alert('Failed to download invoice PDF: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    try {
+      setPrinting(true);
+      const invoiceTitle = `Invoice-${order.orderNumber}`;
+      document.title = invoiceTitle;
+
+      const file = await fetchPdfBlob();
+      const blobUrl = window.URL.createObjectURL(file);
+
+      // Create an invisible iframe to print the exact PDF
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      iframe.name = invoiceTitle;
+      iframe.title = invoiceTitle;
+      iframe.src = blobUrl;
+      document.body.appendChild(iframe);
+
+      let printed = false;
+      const triggerPrint = () => {
+        if (printed) return;
+        printed = true;
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        } catch (e) {
+          // If browser restricts iframe printing of PDF, open in new tab
+          window.open(blobUrl, '_blank');
+        }
+      };
+
+      iframe.onload = triggerPrint;
+      // Fallback timer if iframe.onload doesn't fire for PDF plugin
+      setTimeout(triggerPrint, 1000);
+
+      setTimeout(() => {
+        try {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+          window.URL.revokeObjectURL(blobUrl);
+        } catch (e) {}
+      }, 60000);
+    } catch (err) {
+      console.error('Failed to print PDF', err);
+      // Fallback to window.print which uses document.title
+      window.print();
+    } finally {
+      setPrinting(false);
+    }
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4 sm:p-6 print:p-0">
+    <div className="invoice-modal-portal fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4 sm:p-6 print:p-0">
       <div 
-        className="fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity print:hidden"
+        className="invoice-modal-backdrop fixed -inset-10 bg-slate-950/75 backdrop-blur-md transition-opacity print:hidden"
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl my-8 z-10 print:my-0 print:border-none print:shadow-none animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md print:hidden">
+      <div className="invoice-modal-content relative bg-slate-900/85 backdrop-blur-xl border border-slate-700/70 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl my-8 z-10 print:my-0 print:border-none print:shadow-none animate-in fade-in zoom-in-95 duration-150">
+        <div className="invoice-modal-header flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md print:hidden">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
             <h3 className="font-semibold text-white">Sales Voucher & Official Invoice</h3>
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+              onClick={handleDownloadPdf}
+              disabled={downloading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold shadow-sm transition disabled:opacity-50"
+              title="Download official PDF invoice"
             >
-              <Printer className="w-3.5 h-3.5" />
+              {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              Download PDF
+            </button>
+            <button
+              onClick={handlePrint}
+              disabled={printing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition disabled:opacity-50"
+              title="Print official voucher"
+            >
+              {printing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
               Print Voucher
             </button>
             <button
@@ -52,7 +158,7 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
           </div>
         </div>
 
-        <div className="p-8 bg-transparent text-slate-100 print:bg-white print:text-black print:p-0">
+        <div className="invoice-printable-area p-8 bg-transparent text-slate-100 print:bg-white print:text-black print:p-0">
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start pb-6 border-b border-slate-800 print:border-slate-300 gap-4">
             <div>
@@ -81,18 +187,18 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
           </div>
 
           {/* Info Blocks */}
-          <div className="grid grid-cols-2 gap-6 my-6 p-4 rounded-xl bg-slate-950/60 print:bg-slate-50 border border-slate-800 print:border-slate-200 text-xs">
+          <div className="grid grid-cols-2 gap-6 my-6 p-4 rounded-xl bg-slate-950/60 print:bg-slate-50 border border-slate-800 print:border-slate-300 text-xs">
             <div>
-              <p className="text-slate-400 print:text-slate-600 font-semibold uppercase">Distributor Partner</p>
+              <p className="text-slate-400 print:text-slate-600 font-semibold uppercase tracking-wider text-[10px]">Distributor Partner</p>
               <h4 className="text-sm font-bold text-white print:text-black mt-1">{order.distributorName}</h4>
               <p className="text-slate-400 print:text-slate-600 mt-0.5">Email: {order.distributorEmail || 'N/A'}</p>
               <p className="text-slate-400 print:text-slate-600">Phone: {order.distributorPhone || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-slate-400 print:text-slate-600 font-semibold uppercase">Order & Dispatch Status</p>
-              <p className="text-slate-300 print:text-black mt-1 font-medium">Status: <span className="text-emerald-400 font-bold">{order.orderStatus}</span></p>
-              <p className="text-slate-300 print:text-black">Payment: <span className="text-emerald-400 font-bold">{order.paymentStatus}</span></p>
-              <p className="text-slate-400 print:text-slate-600">Currency: <strong className="text-teal-400">BDT (৳)</strong></p>
+              <p className="text-slate-400 print:text-slate-600 font-semibold uppercase tracking-wider text-[10px]">Order & Dispatch Status</p>
+              <p className="text-slate-300 print:text-black mt-1 font-medium">Status: <span className="text-emerald-400 print:text-emerald-700 font-bold">{order.orderStatus}</span></p>
+              <p className="text-slate-300 print:text-black">Payment: <span className="text-emerald-400 print:text-emerald-700 font-bold">{order.paymentStatus}</span></p>
+              <p className="text-slate-400 print:text-slate-600">Currency: <strong className="text-teal-400 print:text-black">BDT (৳)</strong></p>
             </div>
           </div>
 
@@ -113,21 +219,21 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
               <tbody className="divide-y divide-slate-800/60 print:divide-slate-200">
                 {order.items?.map((item, idx) => (
                   <tr key={idx} className="hover:bg-slate-800/30 print:hover:bg-transparent">
-                    <td className="p-3 text-center font-mono text-slate-400 text-xs font-semibold">{idx + 1}</td>
+                    <td className="p-3 text-center font-mono text-slate-400 print:text-slate-600 text-xs font-semibold">{idx + 1}</td>
                     <td className="p-3 font-medium text-white print:text-black">
                       {item.denominationName}
                       {item.batchNumber && (
-                        <span className="block text-[10px] text-slate-400 font-mono mt-0.5">Batch: {item.batchNumber}</span>
+                        <span className="block text-[10px] text-slate-400 print:text-slate-500 font-mono mt-0.5">Batch: {item.batchNumber}</span>
                       )}
                     </td>
                     <td className="p-3 font-mono">
-                      <span className="inline-block px-2 py-0.5 rounded bg-teal-500/10 text-teal-300 print:text-black print:border print:border-slate-300 font-semibold text-[11px]">
+                      <span className="inline-block px-2 py-0.5 rounded bg-teal-500/10 text-teal-300 print:text-slate-900 print:bg-slate-100 print:border print:border-slate-300 font-semibold text-[11px]">
                         {item.serialRange || (item.startSerialNumber ? `${item.startSerialNumber} ~ ${item.endSerialNumber}` : 'N/A')}
                       </span>
                     </td>
-                    <td className="p-3 text-right font-mono">৳{Number(item.unitFaceValue).toFixed(2)}</td>
+                    <td className="p-3 text-right font-mono text-slate-300 print:text-slate-800">৳{Number(item.unitFaceValue).toFixed(2)}</td>
                     <td className="p-3 text-right font-bold text-teal-400 print:text-black">{item.quantity} cards</td>
-                    <td className="p-3 text-right text-slate-400">{Number(item.itemDiscountPercent).toFixed(1)}%</td>
+                    <td className="p-3 text-right text-slate-400 print:text-slate-600">{Number(item.itemDiscountPercent).toFixed(1)}%</td>
                     <td className="p-3 text-right font-mono font-bold text-white print:text-black">৳{Number(item.subtotalFinal).toFixed(2)}</td>
                   </tr>
                 ))}
@@ -138,28 +244,28 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
           {/* Totals */}
           <div className="flex justify-end mt-6">
             <div className="w-80 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-400 print:text-slate-600">
                 <span>Total Cards Distributed:</span>
                 <span className="font-bold text-white print:text-black">{order.totalCardsCount} units</span>
               </div>
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-400 print:text-slate-600">
                 <span>Retail Value:</span>
-                <span className="font-mono">৳{Number(order.totalFaceValue).toFixed(2)}</span>
+                <span className="font-mono text-white print:text-black">৳{Number(order.totalFaceValue).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-emerald-400">
+              <div className="flex justify-between text-emerald-400 print:text-emerald-700">
                 <span>Volume Discount ({order.discountPercentage}%):</span>
                 <span className="font-mono">-৳{Number(order.discountAmount).toFixed(2)}</span>
               </div>
               <div className="border-t border-slate-700 print:border-slate-300 pt-2 flex justify-between text-sm font-bold text-white print:text-black">
                 <span>Final Amount Paid:</span>
-                <span className="text-teal-400 print:text-black font-mono text-base">৳{Number(order.finalAmount).toFixed(2)}</span>
+                <span className="text-teal-400 print:text-black font-mono text-base font-bold">৳{Number(order.finalAmount).toFixed(2)}</span>
               </div>
             </div>
           </div>
 
           {/* Verification & Legal Footer */}
-          <div className="mt-8 pt-4 border-t border-slate-800/80 text-[11px] text-slate-500 text-center print:text-slate-600 space-y-1">
-            <p className="font-semibold text-slate-400 print:text-black">
+          <div className="mt-8 pt-4 border-t border-slate-800/80 print:border-slate-300 text-[11px] text-slate-500 print:text-slate-600 text-center space-y-1">
+            <p className="font-semibold text-slate-400 print:text-slate-800">
               Serialized Product Notice: All cards in the specified serial ranges have been activated and allocated to {order.distributorName}.
             </p>
             <p>Cryptographically hashed PINs are valid for subscriber talk-time recharge on the IPTSP platform. Currency: Bangladeshi Taka (৳ / BDT).</p>

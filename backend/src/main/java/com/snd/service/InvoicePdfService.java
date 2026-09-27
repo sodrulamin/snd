@@ -62,6 +62,10 @@ public class InvoicePdfService {
 
         try {
             PdfWriter.getInstance(document, out);
+            document.addTitle("Invoice-" + order.getOrderNumber());
+            document.addSubject("Official Sales Voucher & Invoice for Order " + order.getOrderNumber());
+            document.addAuthor(invoice.getCompanyName() != null ? invoice.getCompanyName() : "IPTSP Global Connect Ltd.");
+            document.addCreator("IPTSP Sales & Distribution Portal");
             document.open();
 
             // 1. Header Section (Company info & Invoice badge)
