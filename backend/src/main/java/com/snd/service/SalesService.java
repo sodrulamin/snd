@@ -40,6 +40,18 @@ public class SalesService {
     private final MailService mailService;
     private final PartnerProfileRepository partnerProfileRepository;
 
+    @org.springframework.beans.factory.annotation.Value("${app.company.name:Orbitalk}")
+    private String companyName;
+
+    @org.springframework.beans.factory.annotation.Value("${app.company.address:Impetus Center, 242/B Tejgaon-Gulshan Link Road, Tejgaon I/A, Dhaka-1208, Bangladesh}")
+    private String companyAddress;
+
+    @org.springframework.beans.factory.annotation.Value("${app.company.phone:+880-2-9880000}")
+    private String companyPhone;
+
+    @org.springframework.beans.factory.annotation.Value("${app.company.email:billing@orbitalk.bd}")
+    private String companyEmail;
+
     @Transactional
     public SalesOrderResponse createOrder(CreateOrderRequest request, String createdByUsername) {
         User distributor = userRepository.findById(request.getDistributorId())
@@ -410,10 +422,10 @@ public class SalesService {
         SalesOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
         return InvoiceDto.builder()
-                .companyName("IPTSP Global Connect Ltd.")
-                .companyAddress("Gulshan-2, Dhaka, Bangladesh")
-                .companyPhone("+880-2-9880000")
-                .companyEmail("billing@iptspglobal.bd")
+                .companyName(companyName)
+                .companyAddress(companyAddress)
+                .companyPhone(companyPhone)
+                .companyEmail(companyEmail)
                 .order(mapToOrderResponse(order))
                 .build();
     }

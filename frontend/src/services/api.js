@@ -103,5 +103,9 @@ export const campaignService = {
   getCalculationSummary: (params) => api.get('/campaigns/summary', { params }),
 };
 
+export const companyService = {
+  getCompanyInfo: () => api.get('/company/info'),
+};
+
 export default api;
 

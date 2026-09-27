@@ -24,7 +24,11 @@ services:
       SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
       SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
       APP_MAIL_FROM: ${APP_MAIL_FROM:-}
-      APP_MAIL_FROM_NAME: ${APP_MAIL_FROM_NAME:-IPTSP Recharge Distribution}
+      APP_MAIL_FROM_NAME: ${APP_MAIL_FROM_NAME:-Orbitalk Recharge Distribution}
+      APP_COMPANY_NAME: ${APP_COMPANY_NAME:-Orbitalk}
+      APP_COMPANY_ADDRESS: ${APP_COMPANY_ADDRESS:-Impetus Center, 242/B Tejgaon-Gulshan Link Road, Tejgaon I/A, Dhaka-1208, Bangladesh}
+      APP_COMPANY_PHONE: ${APP_COMPANY_PHONE:-+880-2-9880000}
+      APP_COMPANY_EMAIL: ${APP_COMPANY_EMAIL:-billing@orbitalk.bd}
      
     networks:
       - sas-net

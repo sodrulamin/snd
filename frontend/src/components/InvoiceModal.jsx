@@ -91,10 +91,10 @@ export default function InvoiceModal({ invoice, invoiceData, onClose }) {
                 <div className="p-2 rounded-lg bg-teal-500 text-slate-950">
                   <PhoneCall className="w-5 h-5" />
                 </div>
-                <h1 className="text-xl font-bold tracking-tight text-white print:text-black">{companyName || 'IPTSP Global Connect Ltd.'}</h1>
+                <h1 className="text-xl font-bold tracking-tight text-white">{companyName || 'Orbitalk'}</h1>
               </div>
-              <p className="text-xs text-slate-400 print:text-slate-600 mt-2">{companyAddress || 'Gulshan-2, Dhaka, Bangladesh'}</p>
-              <p className="text-xs text-slate-400 print:text-slate-600">Tel: {companyPhone || '+880-2-9880000'} | Email: {companyEmail || 'billing@iptspglobal.bd'}</p>
+              <p className="text-xs text-slate-400 mt-2">{companyAddress || 'Impetus Center, 242/B Tejgaon-Gulshan Link Road, Tejgaon I/A, Dhaka-1208, Bangladesh'}</p>
+              <p className="text-xs text-slate-400">Tel: {companyPhone || '+880-2-9880000'} | Email: {companyEmail || 'billing@orbitalk.bd'}</p>
             </div>
 
             <div className="text-left sm:text-right">

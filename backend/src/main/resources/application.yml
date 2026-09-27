@@ -46,6 +46,11 @@ app:
   jwt:
     secret: ${APP_JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
     expiration-ms: ${APP_JWT_EXPIRATION_MS:86400000}
+  company:
+    name: ${APP_COMPANY_NAME:Orbitalk}
+    address: ${APP_COMPANY_ADDRESS:Impetus Center, 242/B Tejgaon-Gulshan Link Road, Tejgaon I/A, Dhaka-1208, Bangladesh}
+    phone: ${APP_COMPANY_PHONE:+880-2-9880000}
+    email: ${APP_COMPANY_EMAIL:ak.azad@race.net.bd}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173,http://localhost:80,http://localhost}
   sms:
@@ -55,7 +60,7 @@ app:
     caller-id: ${APP_SMS_CALLER_ID:xxxxxxxxxxxxx}
   mail:
     from: ${APP_MAIL_FROM:${SPRING_MAIL_USERNAME:}}
-    from-name: ${APP_MAIL_FROM_NAME:IPTSP Recharge Distribution}
+    from-name: ${APP_MAIL_FROM_NAME:Orbitalk Recharge Distribution}
 
 logging:
   pattern:

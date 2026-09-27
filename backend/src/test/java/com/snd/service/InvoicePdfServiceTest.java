@@ -67,10 +67,10 @@ class InvoicePdfServiceTest {
                 .build();
 
         InvoiceDto invoice = InvoiceDto.builder()
-                .companyName("IPTSP Global Connect Ltd.")
-                .companyAddress("Gulshan-2, Dhaka-1212, Bangladesh")
+                .companyName("Orbitalk")
+                .companyAddress("Impetus Center, 242/B Tejgaon-Gulshan Link Road, Tejgaon I/A, Dhaka-1208, Bangladesh")
                 .companyPhone("+880-2-9880000")
-                .companyEmail("billing@iptspglobal.bd")
+                .companyEmail("billing@orbitalk.bd")
                 .order(order)
                 .build();
 

@@ -47,6 +47,18 @@ public class InvoicePdfService {
     private static final Font FONT_TOTAL_VALUE = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, COLOR_PRIMARY_DARK);
     private static final Font FONT_FOOTER = FontFactory.getFont(FontFactory.HELVETICA, 7, COLOR_TEXT_MUTED);
 
+    @org.springframework.beans.factory.annotation.Value("${app.company.name:Orbitalk}")
+    private String defaultCompanyName;
+
+    @org.springframework.beans.factory.annotation.Value("${app.company.address:Impetus Center, 242/B Tejgaon-Gulshan Link Road, Tejgaon I/A, Dhaka-1208, Bangladesh}")
+    private String defaultCompanyAddress;
+
+    @org.springframework.beans.factory.annotation.Value("${app.company.phone:+880-2-9880000}")
+    private String defaultCompanyPhone;
+
+    @org.springframework.beans.factory.annotation.Value("${app.company.email:billing@orbitalk.bd}")
+    private String defaultCompanyEmail;
+
     /**
      * Generates a PDF invoice byte array from a SalesDto.InvoiceDto object.
      */
@@ -57,6 +69,15 @@ public class InvoicePdfService {
 
         SalesOrderResponse order = invoice.getOrder();
 
+        String compName = (invoice.getCompanyName() != null && !invoice.getCompanyName().isBlank()) 
+                ? invoice.getCompanyName() : defaultCompanyName;
+        String compAddress = (invoice.getCompanyAddress() != null && !invoice.getCompanyAddress().isBlank()) 
+                ? invoice.getCompanyAddress() : defaultCompanyAddress;
+        String compPhone = (invoice.getCompanyPhone() != null && !invoice.getCompanyPhone().isBlank()) 
+                ? invoice.getCompanyPhone() : defaultCompanyPhone;
+        String compEmail = (invoice.getCompanyEmail() != null && !invoice.getCompanyEmail().isBlank()) 
+                ? invoice.getCompanyEmail() : defaultCompanyEmail;
+
         Document document = new Document(PageSize.A4, 36, 36, 36, 36);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
@@ -64,8 +85,8 @@ public class InvoicePdfService {
             PdfWriter.getInstance(document, out);
             document.addTitle("Invoice-" + order.getOrderNumber());
             document.addSubject("Official Sales Voucher & Invoice for Order " + order.getOrderNumber());
-            document.addAuthor(invoice.getCompanyName() != null ? invoice.getCompanyName() : "IPTSP Global Connect Ltd.");
-            document.addCreator("IPTSP Sales & Distribution Portal");
+            document.addAuthor(compName);
+            document.addCreator(compName + " Sales & Distribution Portal");
             document.open();
 
             // 1. Header Section (Company info & Invoice badge)
@@ -76,10 +97,10 @@ public class InvoicePdfService {
             // Company Info Cell
             PdfPCell companyCell = new PdfPCell();
             companyCell.setBorder(Rectangle.NO_BORDER);
-            companyCell.addElement(new Paragraph(invoice.getCompanyName() != null ? invoice.getCompanyName() : "IPTSP Global Connect Ltd.", FONT_TITLE));
-            companyCell.addElement(new Paragraph(invoice.getCompanyAddress() != null ? invoice.getCompanyAddress() : "Gulshan-2, Dhaka, Bangladesh", FONT_SUBTITLE));
-            companyCell.addElement(new Paragraph("Tel: " + (invoice.getCompanyPhone() != null ? invoice.getCompanyPhone() : "+880-2-9880000") +
-                    "  |  Email: " + (invoice.getCompanyEmail() != null ? invoice.getCompanyEmail() : "billing@iptspglobal.bd"), FONT_SUBTITLE));
+            companyCell.addElement(new Paragraph(compName, FONT_TITLE));
+            companyCell.addElement(new Paragraph(compAddress, FONT_SUBTITLE));
+            companyCell.addElement(new Paragraph("Tel: " + compPhone +
+                    "  |  Email: " + compEmail, FONT_SUBTITLE));
             headerTable.addCell(companyCell);
 
             // Invoice Title & Number Cell (Right aligned)
