@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useSearchParams, useLocation } from 'react-router-dom';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import {
   Plus,
   Trash2,
@@ -56,6 +56,7 @@ export default function SalesPage() {
   const { user, isAdmin } = useAuth();
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const startDateRef = useRef(null);
   const endDateRef = useRef(null);
   const [orders, setOrders] = useState([]);
@@ -504,29 +505,8 @@ export default function SalesPage() {
   useEffect(() => {
     loadData(0);
 
-    // Detect if this page load was a browser refresh/reload
-    const isReload = (() => {
-      try {
-        const navEntries = performance.getEntriesByType?.('navigation');
-        if (navEntries && navEntries.length > 0) {
-          return navEntries[0].type === 'reload';
-        }
-        return performance?.navigation?.type === 1;
-      } catch (e) {
-        return false;
-      }
-    })();
-
     const navState = location.state;
     const isNewAction = searchParams.get('action') === 'new';
-
-    // If page was refreshed, do NOT open create modal, clear any persisted state/search params
-    if (isReload) {
-      if (navState || isNewAction) {
-        window.history.replaceState({}, document.title, location.pathname);
-      }
-      return;
-    }
 
     if (navState?.openOrderModal || isNewAction) {
       setShowOrderModal(true);
@@ -540,8 +520,9 @@ export default function SalesPage() {
           }
         ]);
       }
-      // Immediately clear state so refreshing or future navigations don't re-trigger modal
-      window.history.replaceState({}, document.title, location.pathname);
+      // Immediately consume and clear navigation state so refreshing won't re-open the modal
+      navigate('/sales', { replace: true, state: null });
+      window.history.replaceState(null, document.title, location.pathname);
     }
   }, [location.state]);
 

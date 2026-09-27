@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Megaphone, 
   Plus, 
@@ -46,6 +46,7 @@ const PURPOSE_CATEGORIES = [
 
 export default function CampaignExpensesPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { setPageLoading } = usePageLoading();
   const { isAdmin } = useAuth();
@@ -204,28 +205,8 @@ export default function CampaignExpensesPage() {
   useEffect(() => {
     fetchData(0);
     loadInventoryOptions().then(({ denoms, batches }) => {
-      // Detect if this page load was a browser refresh/reload
-      const isReload = (() => {
-        try {
-          const navEntries = performance.getEntriesByType?.('navigation');
-          if (navEntries && navEntries.length > 0) {
-            return navEntries[0].type === 'reload';
-          }
-          return performance?.navigation?.type === 1;
-        } catch (e) {
-          return false;
-        }
-      })();
-
       const navState = location.state;
       const action = searchParams.get('action');
-
-      if (isReload) {
-        if (navState || action === 'new') {
-          window.history.replaceState({}, document.title, location.pathname);
-        }
-        return;
-      }
 
       if (navState?.openCreateModal || action === 'new') {
         const prefill = {
@@ -236,7 +217,8 @@ export default function CampaignExpensesPage() {
           category: navState?.category || searchParams.get('category') || 'CAMPAIGN'
         };
         handleOpenCreateModal(prefill);
-        window.history.replaceState({}, document.title, location.pathname);
+        navigate(location.pathname, { replace: true, state: null });
+        window.history.replaceState(null, document.title, location.pathname);
       }
     });
   }, [location.state]);
